@@ -4622,18 +4622,11 @@ static int is_valid_calib_vig_addr(char __iomem *ptr)
 						MDSS_MDP_PA_SIZE)) {
 			ret = MDP_PP_OPS_READ | MDP_PP_OPS_WRITE;
 			break;
-<<<<<<< HEAD
-		/* IGC range */
-		} else if ((ptr >= base + MDSS_MDP_REG_IGC_VIG_BASE) &&
-				(ptr <= base + MDSS_MDP_REG_IGC_VIG_BASE +
-						MDSS_MDP_GC_SIZE)) {
-=======
 		/* Mem color range */
 		} else if (mdss_res->mdp_rev >= MDSS_MDP_HW_REV_103 &&
 			(ptr >= base + MDSS_MDP_REG_VIG_MEM_COL_BASE) &&
 				(ptr <= base + MDSS_MDP_REG_VIG_MEM_COL_BASE +
 						MDSS_MDP_MEM_COL_SIZE)) {
->>>>>>> eb58d65... msm: mdss: fix IGC access for calibration service
 			ret = MDP_PP_OPS_READ | MDP_PP_OPS_WRITE;
 			break;
 		}
