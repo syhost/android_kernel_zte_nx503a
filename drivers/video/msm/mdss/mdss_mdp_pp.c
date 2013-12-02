@@ -174,6 +174,8 @@ static u32 igc_limited[IGC_LUT_ENTRIES] = {
 	GAMUT_T5_SIZE + GAMUT_T6_SIZE + GAMUT_T7_SIZE)
 
 #define MDSS_MDP_PA_SIZE		0xC
+#define MDSS_MDP_SIX_ZONE_SIZE		0xC
+#define MDSS_MDP_MEM_COL_SIZE		0x3C
 #define MDSS_MDP_GC_SIZE		0x28
 #define MDSS_MDP_PCC_SIZE		0xB8
 #define MDSS_MDP_GAMUT_SIZE		0x5C
@@ -4582,6 +4584,14 @@ static int is_valid_calib_dspp_addr(char __iomem *ptr)
 			break;
 		/* Dither enable/disable */
 		} else if ((ptr == base + MDSS_MDP_REG_DSPP_DITHER_DEPTH)) {
+			ret = MDP_PP_OPS_READ | MDP_PP_OPS_WRITE;
+			break;
+		/* Six zone and mem color */
+		} else if (mdss_res->mdp_rev >= MDSS_MDP_HW_REV_103 &&
+			(ptr >= base + MDSS_MDP_REG_DSPP_SIX_ZONE_BASE) &&
+			(ptr <= base + MDSS_MDP_REG_DSPP_SIX_ZONE_BASE +
+					MDSS_MDP_SIX_ZONE_SIZE +
+					MDSS_MDP_MEM_COL_SIZE)) {
 			ret = MDP_PP_OPS_READ | MDP_PP_OPS_WRITE;
 			break;
 		}
