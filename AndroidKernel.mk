@@ -16,7 +16,7 @@ KERNEL_USE_OF ?= $(shell $(PERL) -e '$$of = "n"; while (<>) { if (/CONFIG_USE_OF
 
 ifeq "$(KERNEL_USE_OF)" "y"
 ifeq ($(TARGET_ZTEMT_DTS),true)
-DTS_FILES = $(wildcard $(TOP)/kernel/arch/arm/boot/dts/msm8974-*-mtp-ztemt-$(TARGET_PRODUCT).dts)
+DTS_FILES = $(wildcard $(TOP)/kernel/arch/arm/boot/dts/msm8974-v2.2-mtp-ztemt-NX503A.dts)
 else
 DTS_FILES = $(wildcard $(TOP)/kernel/arch/arm/boot/dts/$(DTS_NAME)*.dts)
 endif
