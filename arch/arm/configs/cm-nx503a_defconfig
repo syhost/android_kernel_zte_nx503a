@@ -1506,7 +1506,7 @@ CONFIG_WLAN=y
 # CONFIG_ATH6K_LEGACY_EXT is not set
 # CONFIG_WCNSS_CORE is not set
 # CONFIG_ATH_COMMON is not set
-CONFIG_BCMDHD=y
+CONFIG_BCMDHD=m
 CONFIG_BCMDHD_FW_PATH="/system/etc/firmware/bcm4339/fw_bcmdhd.bin"
 CONFIG_BCMDHD_NVRAM_PATH="/system/etc/firmware/bcm4339/nvram.txt"
 # CONFIG_DHD_USE_STATIC_BUF is not set
