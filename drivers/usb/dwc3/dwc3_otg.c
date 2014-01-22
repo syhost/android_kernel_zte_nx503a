@@ -24,10 +24,6 @@
 #include "io.h"
 #include "xhci.h"
 
-#ifdef CONFIG_ZTEMT_CHARGE
-static 	struct power_supply	*psy_qpnp_dc = NULL ;
-#endif
-
 #define VBUS_REG_CHECK_DELAY	(msecs_to_jiffies(1000))
 #define MAX_INVALID_CHRGR_RETRY 3
 static int max_chgr_retry_count = MAX_INVALID_CHRGR_RETRY;
@@ -97,6 +93,19 @@ static int dwc3_otg_set_suspend(struct usb_phy *phy, int suspend)
 	return 0;
 }
 
+static void dwc3_otg_set_hsphy_auto_suspend(struct dwc3_otg *dotg, bool susp)
+{
+	struct dwc3 *dwc = dotg->dwc;
+	u32 reg;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+	if (susp)
+		reg |= DWC3_GUSB2PHYCFG_SUSPHY;
+	else
+		reg &= ~(DWC3_GUSB2PHYCFG_SUSPHY);
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+}
+
 /**
  * dwc3_otg_set_host_power - Enable port power control for host operation
  *
@@ -147,7 +156,7 @@ static void dwc3_otg_set_peripheral_regs(struct dwc3_otg *dotg)
 		/*
 		 * Set this bit so that device attempts three more times at SS,
 		 * even if it failed previously to operate in SS mode.
-		 */
+	 */
 		reg |= DWC3_GCTL_U2RSTECN;
 		reg &= ~(DWC3_GCTL_PWRDNSCALEMASK);
 		reg |= DWC3_GCTL_PWRDNSCALE(2);
@@ -198,6 +207,7 @@ static int dwc3_otg_start_host(struct usb_otg *otg, int on)
 		 * remove_hcd, But we may not use standard set_host method
 		 * anymore.
 		 */
+		dwc3_otg_set_hsphy_auto_suspend(dotg, true);
 		dwc3_otg_set_host_regs(dotg);
 		/*
 		 * FIXME If micro A cable is disconnected during system suspend,
@@ -244,8 +254,9 @@ static int dwc3_otg_start_host(struct usb_otg *otg, int on)
 		 */
 		if (ext_xceiv && ext_xceiv->otg_capability &&
 						ext_xceiv->ext_block_reset)
-			ext_xceiv->ext_block_reset(true);
+			ext_xceiv->ext_block_reset(ext_xceiv, true);
 
+		dwc3_otg_set_hsphy_auto_suspend(dotg, false);
 		dwc3_otg_set_peripheral_regs(dotg);
 
 		/* re-init core and OTG registers as block reset clears these */
@@ -311,14 +322,16 @@ static int dwc3_otg_start_peripheral(struct usb_otg *otg, int on)
 		 * DBM reset is required, hence perform only DBM reset here */
 		if (ext_xceiv && ext_xceiv->otg_capability &&
 						ext_xceiv->ext_block_reset)
-			ext_xceiv->ext_block_reset(false);
+			ext_xceiv->ext_block_reset(ext_xceiv, false);
 
+		dwc3_otg_set_hsphy_auto_suspend(dotg, true);
 		dwc3_otg_set_peripheral_regs(dotg);
 		usb_gadget_vbus_connect(otg->gadget);
 	} else {
 		dev_dbg(otg->phy->dev, "%s: turn off gadget %s\n",
 					__func__, otg->gadget->name);
 		usb_gadget_vbus_disconnect(otg->gadget);
+		dwc3_otg_set_hsphy_auto_suspend(dotg, false);
 	}
 
 	return 0;
@@ -523,22 +536,14 @@ static int dwc3_otg_set_power(struct usb_phy *phy, unsigned mA)
 	else if (dotg->charger->chg_type == DWC3_CDP_CHARGER)
 		power_supply_type = POWER_SUPPLY_TYPE_USB_CDP;
 	else if (dotg->charger->chg_type == DWC3_DCP_CHARGER ||
-#ifdef CONFIG_ZTEMT_CHARGE
-	          dotg->charger->chg_type == DWC3_FLOATED_CHARGER ||
-#endif
 			dotg->charger->chg_type == DWC3_PROPRIETARY_CHARGER)
 		power_supply_type = POWER_SUPPLY_TYPE_USB_DCP;
 	else
 		power_supply_type = POWER_SUPPLY_TYPE_BATTERY;
 
 	power_supply_set_supply_type(dotg->psy, power_supply_type);
-	
-#ifdef CONFIG_ZTEMT_CHARGE	
- if(psy_qpnp_dc)
-			power_supply_set_supply_type(psy_qpnp_dc, power_supply_type);
-#endif
 
-	if ((dotg->charger->chg_type == DWC3_CDP_CHARGER) && mA > 2)
+	if (dotg->charger->chg_type == DWC3_CDP_CHARGER)
 		mA = DWC3_IDEV_CHG_MAX;
 
 	if (dotg->charger->max_power == mA)
@@ -695,12 +700,6 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 	pm_runtime_resume(phy->dev);
 	dev_dbg(phy->dev, "%s state\n", otg_state_string(phy->state));
 
-#ifdef CONFIG_ZTEMT_CHARGE
-	if( psy_qpnp_dc == NULL)
-	{
-		   psy_qpnp_dc = power_supply_get_by_name("qpnp-dc");
-	}
-#endif	
 	/* Check OTG state */
 	switch (phy->state) {
 	case OTG_STATE_UNDEFINED:
@@ -770,12 +769,6 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 					work = 1;
 					break;
 				case DWC3_FLOATED_CHARGER:
-				#ifdef CONFIG_ZTEMT_CHARGE
-					dev_dbg(phy->dev, "lpm, FLOATED charger\n");
-					dwc3_otg_set_power(phy,
-							DWC3_IDEV_CHG_MAX);
-					pm_runtime_put_sync(phy->dev);		
-				#else				
 					if (dotg->charger_retry_count <
 							max_chgr_retry_count)
 						dotg->charger_retry_count++;
@@ -796,7 +789,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 					}
 					charger->start_detection(dotg->charger,
 									false);
-    #endif
+
 				default:
 					dev_dbg(phy->dev, "chg_det started\n");
 					charger->start_detection(charger, true);

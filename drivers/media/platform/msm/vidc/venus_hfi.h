@@ -116,6 +116,14 @@ enum vidc_hw_reg {
 	VIDC_HWREG_HVI_SOFTINTEN =  0xA,
 };
 
+enum bus_index {
+	BUS_IDX_ENC_OCMEM,
+	BUS_IDX_DEC_OCMEM,
+	BUS_IDX_ENC_DDR,
+	BUS_IDX_DEC_DDR,
+	BUS_IDX_MAX
+};
+
 struct vidc_mem_addr {
 	u8 *align_device_addr;
 	u8 *align_virtual_addr;
@@ -182,6 +190,7 @@ struct venus_hfi_device {
 	struct mutex read_lock;
 	struct mutex write_lock;
 	struct mutex clk_pwr_lock;
+	struct mutex session_lock;
 	msm_vidc_callback callback;
 	struct vidc_mem_addr iface_q_table;
 	struct vidc_mem_addr qdss;
@@ -198,6 +207,8 @@ struct venus_hfi_device {
 	u32 register_base;
 	u32 register_size;
 	u32 irq;
+	int clk_cnt;
+	int pwr_cnt;
 	struct venus_resources resources;
 	struct msm_vidc_platform_resources *res;
 	struct regulator *gdsc;

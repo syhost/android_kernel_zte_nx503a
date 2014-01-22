@@ -45,6 +45,11 @@
 #define TO_SECS(arr)		(arr[0] | (arr[1] << 8) | (arr[2] << 16) | \
 							(arr[3] << 24))
 
+/* Module parameter to control power-on-alarm */
+static bool poweron_alarm;
+module_param(poweron_alarm, bool, 0644);
+MODULE_PARM_DESC(poweron_alarm, "Enable/Disable power-on alarm");
+
 /* rtc driver internal structure */
 struct qpnp_rtc {
 	u8  rtc_ctrl_reg;
@@ -565,58 +570,6 @@ fail_rtc_enable:
 	return rc;
 }
 
-#ifdef CONFIG_ZTEMT_POWER_DEBUG
-static time_t rtc_suspend_sec = 0;
-static time_t rtc_resume_sec = 0;
-static unsigned long all_sleep_time = 0;
-static unsigned long all_wake_time = 0;
-
-static int print_suspend_time(struct device *dev)
-{
-	int rc, diff=0;
-	struct rtc_time tm;
-	unsigned long now;
-
-	rc = qpnp_rtc_read_time(dev,&tm);  
- 	if(rc) {
-	  printk("%s: Unable to read from RTC\n", __func__);
-	}
-
-	rtc_tm_to_time(&tm, &now);
-	rtc_suspend_sec = now;
-	diff = rtc_suspend_sec - rtc_resume_sec;
-	all_wake_time += diff;
-	printk("I have work %d seconds all_wake_time %lu seconds\n",diff,all_wake_time);
-
-	return 0;
-}
-
-static int print_resume_time(struct device *dev)
-{
-	int rc, diff=0;
-	struct rtc_time tm;
-	unsigned long now;
-
-	rc = qpnp_rtc_read_time(dev,&tm);
- 	if (rc) {
-	  printk("%s: Unable to read from RTC\n", __func__);
-	}
-
-	rtc_tm_to_time(&tm, &now);
-	rtc_resume_sec = now;
-	diff = rtc_resume_sec - rtc_suspend_sec;
-	all_sleep_time += diff;
-	printk("I have sleep %d seconds all_sleep_time %lu seconds\n",diff,all_sleep_time);
-
-	return 0;
-}
-
-static const struct dev_pm_ops qpnp_rtc_pm_ops = {
-	.suspend = print_suspend_time,
-	.resume = print_resume_time,
-};
-#endif
-
 static int __devexit qpnp_rtc_remove(struct spmi_device *spmi)
 {
 	struct qpnp_rtc *rtc_dd = dev_get_drvdata(&spmi->dev);
@@ -638,7 +591,7 @@ static void qpnp_rtc_shutdown(struct spmi_device *spmi)
 	struct qpnp_rtc *rtc_dd = dev_get_drvdata(&spmi->dev);
 	bool rtc_alarm_powerup = rtc_dd->rtc_alarm_powerup;
 
-	if (!rtc_alarm_powerup) {
+	if (!rtc_alarm_powerup && !poweron_alarm) {
 		spin_lock_irqsave(&rtc_dd->alarm_ctrl_lock, irq_flags);
 		dev_dbg(&spmi->dev, "Disabling alarm interrupts\n");
 
@@ -679,9 +632,6 @@ static struct spmi_driver qpnp_rtc_driver = {
 		.name   = "qcom,qpnp-rtc",
 		.owner  = THIS_MODULE,
 		.of_match_table = spmi_match_table,
-		#ifdef CONFIG_ZTEMT_POWER_DEBUG
-		.pm	= &qpnp_rtc_pm_ops,
-		#endif
 	},
 };
 

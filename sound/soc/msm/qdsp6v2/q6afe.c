@@ -243,6 +243,7 @@ int afe_get_port_type(u16 port_id)
 	case INT_BT_A2DP_RX:
 	case INT_FM_RX:
 	case VOICE_PLAYBACK_TX:
+	case VOICE2_PLAYBACK_TX:
 	case RT_PROXY_PORT_001_RX:
 	case AUDIO_PORT_ID_I2S_RX:
 	case AFE_PORT_ID_PRIMARY_MI2S_RX:
@@ -312,6 +313,7 @@ int afe_sizeof_cfg_cmd(u16 port_id)
 		ret_size = SIZEOF_CFG_CMD(afe_param_id_slimbus_cfg);
 		break;
 	case VOICE_PLAYBACK_TX:
+	case VOICE2_PLAYBACK_TX:
 	case VOICE_RECORD_RX:
 	case VOICE_RECORD_TX:
 		ret_size = SIZEOF_CFG_CMD(afe_param_id_pseudo_port_cfg);
@@ -628,6 +630,71 @@ static void afe_send_cal_spkr_prot_rx(int port_id)
 			pr_err("%s RX MODE_VI_PROC_CFG failed\n",
 				   __func__);
 	}
+}
+
+static int afe_send_hw_delay(u16 port_id, u32 rate)
+{
+	struct hw_delay_entry delay_entry;
+	struct afe_audioif_config_command config;
+	int index = 0;
+	int ret = -EINVAL;
+
+	pr_debug("%s\n", __func__);
+
+	delay_entry.sample_rate = rate;
+	if (afe_get_port_type(port_id) == MSM_AFE_PORT_TYPE_TX)
+		ret = get_hw_delay(TX_CAL, &delay_entry);
+	else if (afe_get_port_type(port_id) == MSM_AFE_PORT_TYPE_RX)
+		ret = get_hw_delay(RX_CAL, &delay_entry);
+
+	if (ret != 0) {
+		pr_debug("%s: Failed to get hw delay info\n", __func__);
+		goto fail_cmd;
+	}
+	index = q6audio_get_port_index(port_id);
+	if (index < 0) {
+		pr_debug("%s: AFE port index invalid!\n", __func__);
+		goto fail_cmd;
+	}
+
+	config.hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+				APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
+	config.hdr.pkt_size = sizeof(config);
+	config.hdr.src_port = 0;
+	config.hdr.dest_port = 0;
+	config.hdr.token = index;
+
+	config.hdr.opcode = AFE_PORT_CMD_SET_PARAM_V2;
+	config.param.port_id = q6audio_get_port_id(port_id);
+	config.param.payload_size = sizeof(config) - sizeof(struct apr_hdr) -
+				    sizeof(config.param);
+	config.param.payload_address_lsw = 0x00;
+	config.param.payload_address_msw = 0x00;
+	config.param.mem_map_handle = 0x00;
+	config.pdata.module_id = AFE_MODULE_AUDIO_DEV_INTERFACE;
+	config.pdata.param_id = AFE_PARAM_ID_DEVICE_HW_DELAY;
+	config.pdata.param_size = sizeof(config.port);
+
+	config.port.hw_delay.delay_in_us = delay_entry.delay_usec;
+	config.port.hw_delay.device_hw_delay_minor_version =
+				AFE_API_VERSION_DEVICE_HW_DELAY;
+
+	ret = afe_apr_send_pkt(&config, &this_afe.wait[index]);
+	if (ret) {
+		pr_err("%s: AFE hw delay for port %#x failed\n",
+		       __func__, port_id);
+		goto fail_cmd;
+	} else if (atomic_read(&this_afe.status) != 0) {
+		pr_err("%s: config cmd failed\n", __func__);
+		ret = -EINVAL;
+		goto fail_cmd;
+	}
+
+fail_cmd:
+	pr_debug("%s port_id %u rate %u delay_usec %d status %d\n",
+	__func__, port_id, rate, delay_entry.delay_usec, ret);
+	return ret;
+
 }
 
 void afe_send_cal(u16 port_id)
@@ -1246,12 +1313,19 @@ int afe_port_start(u16 port_id, union afe_port_config *afe_config,
 		return ret;
 
 	afe_send_cal(port_id);
+	afe_send_hw_delay(port_id, rate);
 
 	/* Start SW MAD module */
 	mad_type = afe_port_get_mad_type(port_id);
 	pr_debug("%s: port_id 0x%x, mad_type %d\n", __func__, port_id,
 		 mad_type);
-	if (mad_type != MAD_HW_NONE) {
+	if (mad_type != MAD_HW_NONE && mad_type != MAD_SW_AUDIO) {
+		if (!afe_has_config(AFE_CDC_REGISTERS_CONFIG) ||
+		    !afe_has_config(AFE_SLIMBUS_SLAVE_CONFIG)) {
+			pr_err("%s: AFE isn't configured yet for HW MAD\n",
+			       __func__);
+			return -EINVAL;
+		}
 		ret = afe_turn_onoff_hw_mad(mad_type, true);
 		if (ret) {
 			pr_err("%s: afe_turn_onoff_hw_mad failed %d\n",
@@ -1310,6 +1384,7 @@ int afe_port_start(u16 port_id, union afe_port_config *afe_config,
 		cfg_type = AFE_PARAM_ID_HDMI_CONFIG;
 		break;
 	case VOICE_PLAYBACK_TX:
+	case VOICE2_PLAYBACK_TX:
 	case VOICE_RECORD_RX:
 	case VOICE_RECORD_TX:
 		cfg_type = AFE_PARAM_ID_PSEUDO_PORT_CONFIG;
@@ -1403,6 +1478,7 @@ int afe_get_port_index(u16 port_id)
 	case VOICE_RECORD_RX: return IDX_VOICE_RECORD_RX;
 	case VOICE_RECORD_TX: return IDX_VOICE_RECORD_TX;
 	case VOICE_PLAYBACK_TX: return IDX_VOICE_PLAYBACK_TX;
+	case VOICE2_PLAYBACK_TX: return IDX_VOICE2_PLAYBACK_TX;
 	case SLIMBUS_0_RX: return IDX_SLIMBUS_0_RX;
 	case SLIMBUS_0_TX: return IDX_SLIMBUS_0_TX;
 	case SLIMBUS_1_RX: return IDX_SLIMBUS_1_RX;
@@ -2711,6 +2787,7 @@ int afe_validate_port(u16 port_id)
 	case VOICE_RECORD_RX:
 	case VOICE_RECORD_TX:
 	case VOICE_PLAYBACK_TX:
+	case VOICE2_PLAYBACK_TX:
 	case SLIMBUS_0_RX:
 	case SLIMBUS_0_TX:
 	case SLIMBUS_1_RX:
@@ -2802,7 +2879,14 @@ int afe_close(int port_id)
 	uint16_t port_index;
 
 	if (this_afe.apr == NULL) {
-		pr_err("AFE is already closed\n");
+		pr_err("%s: AFE is already closed\n", __func__);
+		if ((port_id == RT_PROXY_DAI_001_RX) ||
+		    (port_id == RT_PROXY_DAI_002_TX))
+			pcm_afe_instance[port_id & 0x1] = 0;
+		if ((port_id == RT_PROXY_DAI_002_RX) ||
+		    (port_id == RT_PROXY_DAI_001_TX))
+			proxy_afe_instance[port_id & 0x1] = 0;
+		afe_close_done[port_id & 0x1] = true;
 		ret = -EINVAL;
 		goto fail_cmd;
 	}
@@ -2843,7 +2927,7 @@ int afe_close(int port_id)
 	mad_type = afe_port_get_mad_type(port_id);
 	pr_debug("%s: port_id 0x%x, mad_type %d\n", __func__, port_id,
 		 mad_type);
-	if (mad_type != MAD_HW_NONE) {
+	if (mad_type != MAD_HW_NONE && mad_type != MAD_SW_AUDIO) {
 		pr_debug("%s: Turn off MAD\n", __func__);
 		ret = afe_turn_onoff_hw_mad(mad_type, false);
 		if (ret) {

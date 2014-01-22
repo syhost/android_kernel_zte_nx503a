@@ -22,12 +22,7 @@
 #include <linux/usb/otg.h>
 #include "power.h"
 
-
-#ifdef CONFIG_ZTEMT_CHARGE
-#define DWC3_IDEV_CHG_MAX 1000
-#else
 #define DWC3_IDEV_CHG_MAX 1500
-#endif
 
 struct dwc3_charger;
 
@@ -120,7 +115,8 @@ struct dwc3_ext_xceiv {
 	void	(*notify_ext_events)(struct usb_otg *otg,
 					enum dwc3_ext_events ext_event);
 	/* for block reset USB core */
-	void	(*ext_block_reset)(bool core_reset);
+	void	(*ext_block_reset)(struct dwc3_ext_xceiv *ext_xceiv,
+					bool core_reset);
 };
 
 /* for external transceiver driver */

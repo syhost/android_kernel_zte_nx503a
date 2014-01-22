@@ -36,9 +36,7 @@ const char *const pm_states[PM_SUSPEND_MAX] = {
 	[PM_SUSPEND_STANDBY]	= "standby",
 	[PM_SUSPEND_MEM]	= "mem",
 };
-#ifdef CONFIG_ZTEMT_POWER_DEBUG
-bool wakeup_wake_lock_debug = false;
-#endif
+
 static const struct platform_suspend_ops *suspend_ops;
 
 /**
@@ -217,9 +215,6 @@ int suspend_devices_and_enter(suspend_state_t state)
 		if (error)
 			goto Close;
 	}
-	#ifdef CONFIG_ZTEMT_POWER_DEBUG
-	wakeup_wake_lock_debug = true;
-	#endif
 	suspend_console();
 	suspend_test_start();
 	error = dpm_suspend_start(PMSG_SUSPEND);

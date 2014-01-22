@@ -78,7 +78,7 @@ static int mmc_host_suspend(struct device *dev)
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
 	int ret = 0;
 
-	if (!mmc_use_core_runtime_pm(host))
+	if (!mmc_use_core_pm(host))
 		return 0;
 
 	if (!pm_runtime_suspended(dev)) {
@@ -95,7 +95,7 @@ static int mmc_host_resume(struct device *dev)
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
 	int ret = 0;
 
-	if (!mmc_use_core_runtime_pm(host))
+	if (!mmc_use_core_pm(host))
 		return 0;
 
 	if (!pm_runtime_suspended(dev)) {
@@ -109,8 +109,8 @@ static int mmc_host_resume(struct device *dev)
 
 static const struct dev_pm_ops mmc_host_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mmc_host_suspend, mmc_host_resume)
-	//SET_RUNTIME_PM_OPS(mmc_host_runtime_suspend, mmc_host_runtime_resume,
-	//		   pm_generic_runtime_idle) /*insmod broadcom HDH.KO system call runtime suspend crash */
+	SET_RUNTIME_PM_OPS(mmc_host_runtime_suspend, mmc_host_runtime_resume,
+			   pm_generic_runtime_idle)
 };
 
 static struct class mmc_host_class = {
@@ -394,10 +394,6 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 {
 	int err;
 	struct mmc_host *host;
-
-	(void)mmc_host_runtime_suspend;
-	(void)mmc_host_runtime_resume;
-
 
 	if (!idr_pre_get(&mmc_host_idr, GFP_KERNEL))
 		return NULL;
@@ -690,14 +686,13 @@ int mmc_add_host(struct mmc_host *host)
 	WARN_ON((host->caps & MMC_CAP_SDIO_IRQ) &&
 		!host->ops->enable_sdio_irq);
 
-	if (mmc_use_core_runtime_pm(host)) {
-		err = pm_runtime_set_active(&host->class_dev);
-		if (err)
-			pr_err("%s: %s: failed setting runtime active: err: %d\n",
-			       mmc_hostname(host), __func__, err);
-		else
-			pm_runtime_enable(&host->class_dev);
-	}
+	err = pm_runtime_set_active(&host->class_dev);
+	if (err)
+		pr_err("%s: %s: failed setting runtime active: err: %d\n",
+		       mmc_hostname(host), __func__, err);
+	else if (mmc_use_core_runtime_pm(host))
+		pm_runtime_enable(&host->class_dev);
+
 	err = device_add(&host->class_dev);
 	if (err)
 		return err;

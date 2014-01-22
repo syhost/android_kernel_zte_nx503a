@@ -53,11 +53,6 @@ struct msm_sensor_fn_t {
 struct msm_sensor_ctrl_t {
 	struct platform_device *pdev;
 	enum msm_camera_device_type_t sensor_device_type;
-#ifdef CONFIG_ZTEMT_CAMERA_OIS
-	struct delayed_work zte_otp_worker;
-	bool zte_otp_enable;
-	struct mutex zte_otp_mutex;
-#endif
 	enum cci_i2c_master_t cci_i2c_master;
 	struct msm_camera_sensor_board_info *sensordata;
 	struct msm_sensor_power_setting_array power_setting_array;
@@ -97,4 +92,15 @@ int32_t msm_sensor_i2c_probe(struct i2c_client *client,
 
 int32_t msm_sensor_free_sensor_data(struct msm_sensor_ctrl_t *s_ctrl);
 
+int32_t msm_sensor_get_dt_gpio_req_tbl(struct device_node *of_node,
+	struct msm_camera_gpio_conf *gconf, uint16_t *gpio_array,
+	uint16_t gpio_array_size);
+
+int32_t msm_sensor_get_dt_gpio_set_tbl(struct device_node *of_node,
+	struct msm_camera_gpio_conf *gconf, uint16_t *gpio_array,
+	uint16_t gpio_array_size);
+
+int32_t msm_sensor_init_gpio_pin_tbl(struct device_node *of_node,
+	struct msm_camera_gpio_conf *gconf, uint16_t *gpio_array,
+	uint16_t gpio_array_size);
 #endif

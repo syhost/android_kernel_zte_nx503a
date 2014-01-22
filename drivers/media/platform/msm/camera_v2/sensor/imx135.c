@@ -25,7 +25,7 @@ static struct msm_sensor_power_setting imx135_power_setting[] = {
 	},
 	{
 		.seq_type = SENSOR_VREG,
-		.seq_val = CAM_VANA,    // This VREG is DRV_AVDD, it can enbale the IMX135's AVDD
+		.seq_val = CAM_VANA,
 		.config_val = 0,
 		.delay = 0,
 	},
@@ -39,7 +39,7 @@ static struct msm_sensor_power_setting imx135_power_setting[] = {
 		.seq_type = SENSOR_VREG,
 		.seq_val = CAM_VAF,
 		.config_val = 0,
- 		.delay = 5,
+		.delay = 0,
 	},
 	{
 		.seq_type = SENSOR_GPIO,
@@ -53,26 +53,18 @@ static struct msm_sensor_power_setting imx135_power_setting[] = {
 		.config_val = GPIO_OUT_HIGH,
 		.delay = 30,
 	},
- 	 #ifdef CONFIG_ZTEMT_CAMERA_OIS
-        {
- 		.seq_type = SENSOR_GPIO,
- 		.seq_val = SENSOR_GPIO_STANDBY,
- 		.config_val = GPIO_OUT_HIGH,
- 		.delay = 5,
- 	},
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_STANDBY,
 		.config_val = GPIO_OUT_LOW,
- 		.delay = 5,
+		.delay = 1,
 	},
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_STANDBY,
 		.config_val = GPIO_OUT_HIGH,
- 		.delay = 5,
+		.delay = 30,
 	},
- 	#endif
 	{
 		.seq_type = SENSOR_CLK,
 		.seq_val = SENSOR_CAM_MCLK,
@@ -168,9 +160,6 @@ static void __exit imx135_exit_module(void)
 
 static struct msm_sensor_ctrl_t imx135_s_ctrl = {
 	.sensor_i2c_client = &imx135_sensor_i2c_client,
-#ifdef CONFIG_ZTEMT_CAMERA_OIS
-	.zte_otp_enable = true,
-#endif
 	.power_setting_array.power_setting = imx135_power_setting,
 	.power_setting_array.size = ARRAY_SIZE(imx135_power_setting),
 	.msm_sensor_mutex = &imx135_mut,

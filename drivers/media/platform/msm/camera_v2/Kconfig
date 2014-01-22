@@ -118,22 +118,16 @@ config IMX135
 		4 mipi lanes, preview config = 2104 x 1560 at 49 fps,
 		snapshot config = 4208 x 3120 at 24 fps,
 		Video HDR support.
-config IMX135_069
-	bool "Sensor IMX135_069 new back camera liteon 06913ma (BAYER 12M)"
+
+config IMX134
+	bool "Sensor IMX134 (BAYER 8M)"
 	depends on MSMB_CAMERA
 	---help---
-		Sony 12 MP Bayer Sensor with auto focus, uses
-		4 mipi lanes, preview config = 2104 x 1560 at 49 fps,
-		snapshot config = 4208 x 3120 at 24 fps,
+		Sony 8 MP Bayer Sensor with auto focus, uses
+		4 mipi lanes full resolution @30fps and
+		HFR @60fps and @120fps
 		Video HDR support.
 
-config OV5648
-       bool "Sensor OV5648 (BAYER 5M)"
-       depends on MSMB_CAMERA
-       ---help---
-               OV 5 MP Bayer Sensor , uses
-               2 mipi lanes, preview config = 1296 x 972 at 30 fps,
-	                       snapshot config = 2592 x 1944 at 15 fps,
 config OV2720
 	bool "Sensor OV2720 (BAYER 2M)"
 	depends on MSMB_CAMERA
@@ -160,6 +154,15 @@ config HI256
                 2 mipi lanes, preview config = 1632*1224 30 fps,
                 snapshot config = 3264 * 2448 at 18 fps.
                 2 lanes max fps is 18, 4 lanes max fps is 24.
+
+config OV5648
+	bool "Sensor OV5648 (BAYER 5M)"
+	depends on MSMB_CAMERA
+	---help---
+		OmniVision 5 MP Bayer Sensor, only use 1 mipi lane,
+		preview set to 1296*972 at 30 fps,
+		snapshot set to 2592*1944 at 12 fps,
+		This sensor driver does not support auto focus.
 
 config MT9M114
 	bool "Sensor MT9M114 (YUV 1.26MP)"
@@ -197,6 +200,33 @@ config OV8825
 		snapshot config = 3264 * 2448 at 18 fps.
 		2 lanes max fps is 18, 4 lanes max fps is 24.
 
+config OV8865
+	bool "OmniVision OV8865 (BAYER 8MP)"
+	depends on MSMB_CAMERA
+	---help---
+		OmniVision 8 MP Bayer Sensor with auto focus.uses
+		4 mipi lanes, preview config = 1632*1224 30 fps,
+		snapshot config = 3264 * 2448 at 30 fps.
+		Max fps is 30fps at 3264 * 2448, 60fps at 1632 * 1224
+
+config s5k4e1
+	bool "Sensor s5k4e1 (BAYER 5MP)"
+	depends on MSMB_CAMERA
+	---help---
+		Samsung 5 MP Bayer Sensor. It uses 2 mipi lanes,
+		supports 720P preview at 30 fps
+		and QSXGA snapshot at 15 fps.
+		This sensor driver does not support auto focus.
+
+config OV12830
+	bool "OmniVision OV12830 (BAYER 12MP)"
+	depends on MSMB_CAMERA
+	---help---
+		OmniVision 12.8 MP Bayer Sensor with auto focus.uses
+		4 mipi lanes, preview config = 2112 * 1500 at 30 fps,
+		snapshot config = 4224 * 3000 at 15 fps.
+		2 lanes max fps is 18, 4 lanes max fps is 24.
+
 config MSM_V4L2_VIDEO_OVERLAY_DEVICE
 	tristate "Qualcomm MSM V4l2 video overlay device"
 	---help---
@@ -219,19 +249,3 @@ config MSM_GEMINI
 	depends on MSMB_CAMERA && (ARCH_MSM7X30 || ARCH_MSM8X60 || ARCH_MSM8960)
 	---help---
 	  Enables support for the Gemini JPEG encoder engine for 8x60.
-config ZTEMT_CAMERA_OIS
-	bool "ztemt camera ois module"
-
-config ZTEMT_AD5816
-	bool "ztemt camera AD5816 driver"
-    ---help---
-      Enables support for the AD5816 Driver for Z5S of IMX135 module
-
-config ZTEMT_CAMERA_MCLK_24M
-	bool "ztemt camera mclk 24m"
-    ---help---
-      Enables support for the camera MCLK for Z5S
-config ZTEMT_CAMERA_PATCH
-	bool "ztemt camera patch"
-    ---help---
-      Qualcomm patch for the camera for Z5S

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -56,24 +56,23 @@ struct msm_rng_device {
 
 struct msm_rng_device msm_rng_device_info;
 
-
 static long msm_rng_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
 	long ret = 0;
 
-	pr_debug("%s: cmd_id = %d\n", __func__, cmd);
-
+	pr_debug("ioctl: cmd = %d\n", cmd);
 	switch (cmd) {
 	case QRNG_IOCTL_RESET_BUS_BANDWIDTH:
+		pr_info("calling msm_rng_bus_scale(LOW)\n");
 		ret = msm_bus_scale_client_update_request(
 				msm_rng_device_info.qrng_perf_client, 0);
 		if (ret)
 			pr_err("failed qrng_reset_bus_bw, ret = %ld\n", ret);
 		break;
 	default:
-		pr_err("Unsupported IOCTL call\n");
-		return -EINVAL;
+		pr_err("Unsupported IOCTL call");
+		break;
 	}
 	return ret;
 }

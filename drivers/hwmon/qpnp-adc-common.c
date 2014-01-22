@@ -44,33 +44,6 @@
    and provided to the battery driver in the units desired for
    their framework which is 0.1DegC. True resolution of 0.1DegC
    will result in the below table size to increase by 10 times */
-#ifdef CONFIG_ZTEMT_CHARGE
-static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
-	{-300, 1626},
-	{-250, 1573},
-	{-200, 1510},
-	{-150, 1438},
-	{-100, 1358},
-	{-50, 1274},
-	{0,   1188},
-	{50,  1103},
-	{100, 1022},
-	{150,  946},
-	{200,  877},
-	{250,  816},
-	{300,  763},
-	{350,  718},
-	{400,  679},
-	{450,  647},
-	{500,  619},
-	{550,  596},
-	{600,  577},
-	{650,  561},
-	{700,  548},
-	{750,  537},
-	{800,  528}
-};
-#else  
 static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{-300,	1642},
 	{-200,	1544},
@@ -156,60 +129,167 @@ static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{780,	208},
 	{790,	203}
 };
-#endif
 
 static const struct qpnp_vadc_map_pt adcmap_qrd_btm_threshold[] = {
-	{-200,	1672},
-	{-180,	1656},
-	{-160,	1639},
-	{-140,	1620},
-	{-120,	1599},
-	{-100,	1577},
-	{-80,	1553},
-	{-60,	1527},
-	{-40,	1550},
-	{-20,	1471},
-	{0,	1440},
-	{20,	1408},
-	{40,	1374},
-	{60,	1339},
-	{80,	1303},
-	{100,	1266},
-	{120,	1228},
-	{140,	1190},
-	{160,	1150},
-	{180,	1111},
-	{200,	1071},
-	{220,	1032},
-	{240,	992},
-	{260,	953},
-	{280,	915},
-	{300,	877},
-	{320,	841},
-	{340,	805},
-	{360,	770},
-	{380,	736},
-	{400,	704},
-	{420,	673},
-	{440,	643},
-	{460,	614},
-	{480,	587},
-	{500,	561},
-	{520,	536},
-	{540,	513},
-	{560,	491},
-	{580,	470},
-	{600,	450},
-	{620,	431},
-	{640,	414},
-	{660,	397},
-	{680,	382},
-	{700,	367},
-	{720,	353},
-	{740,	340},
-	{760,	328},
-	{780,	317},
-	{800,	306},
+	{-200,	1540},
+	{-180,	1517},
+	{-160,	1492},
+	{-140,	1467},
+	{-120,	1440},
+	{-100,	1412},
+	{-80,	1383},
+	{-60,	1353},
+	{-40,	1323},
+	{-20,	1292},
+	{0,	1260},
+	{20,	1228},
+	{40,	1196},
+	{60,	1163},
+	{80,	1131},
+	{100,	1098},
+	{120,	1066},
+	{140,	1034},
+	{160,	1002},
+	{180,	971},
+	{200,	941},
+	{220,	911},
+	{240,	882},
+	{260,	854},
+	{280,	826},
+	{300,	800},
+	{320,	774},
+	{340,	749},
+	{360,	726},
+	{380,	703},
+	{400,	681},
+	{420,	660},
+	{440,	640},
+	{460,	621},
+	{480,	602},
+	{500,	585},
+	{520,	568},
+	{540,	552},
+	{560,	537},
+	{580,	523},
+	{600,	510},
+	{620,	497},
+	{640,	485},
+	{660,	473},
+	{680,	462},
+	{700,	452},
+	{720,	442},
+	{740,	433},
+	{760,	424},
+	{780,	416},
+	{800,	408},
+};
+
+static const struct qpnp_vadc_map_pt adcmap_qrd_skuaa_btm_threshold[] = {
+	{-200,	1476},
+	{-180,	1450},
+	{-160,	1422},
+	{-140,	1394},
+	{-120,	1365},
+	{-100,	1336},
+	{-80,	1306},
+	{-60,	1276},
+	{-40,	1246},
+	{-20,	1216},
+	{0,	1185},
+	{20,	1155},
+	{40,	1126},
+	{60,	1096},
+	{80,	1068},
+	{100,	1040},
+	{120,	1012},
+	{140,	986},
+	{160,	960},
+	{180,	935},
+	{200,	911},
+	{220,	888},
+	{240,	866},
+	{260,	844},
+	{280,	824},
+	{300,	805},
+	{320,	786},
+	{340,	769},
+	{360,	752},
+	{380,	737},
+	{400,	722},
+	{420,	707},
+	{440,	694},
+	{460,	681},
+	{480,	669},
+	{500,	658},
+	{520,	648},
+	{540,	637},
+	{560,	628},
+	{580,	619},
+	{600,	611},
+	{620,	603},
+	{640,	595},
+	{660,	588},
+	{680,	582},
+	{700,	575},
+	{720,	569},
+	{740,	564},
+	{760,	559},
+	{780,	554},
+	{800,	549},
+};
+
+static const struct qpnp_vadc_map_pt adcmap_qrd_skug_btm_threshold[] = {
+	{-200,	1338},
+	{-180,	1307},
+	{-160,	1276},
+	{-140,	1244},
+	{-120,	1213},
+	{-100,	1182},
+	{-80,	1151},
+	{-60,	1121},
+	{-40,	1092},
+	{-20,	1063},
+	{0,	1035},
+	{20,	1008},
+	{40,	982},
+	{60,	957},
+	{80,	933},
+	{100,	910},
+	{120,	889},
+	{140,	868},
+	{160,	848},
+	{180,	830},
+	{200,	812},
+	{220,	795},
+	{240,	780},
+	{260,	765},
+	{280,	751},
+	{300,	738},
+	{320,	726},
+	{340,	714},
+	{360,	704},
+	{380,	694},
+	{400,	684},
+	{420,	675},
+	{440,	667},
+	{460,	659},
+	{480,	652},
+	{500,	645},
+	{520,	639},
+	{540,	633},
+	{560,	627},
+	{580,	622},
+	{600,	617},
+	{620,	613},
+	{640,	608},
+	{660,	604},
+	{680,	600},
+	{700,	597},
+	{720,	593},
+	{740,	590},
+	{760,	587},
+	{780,	585},
+	{800,	582},
 };
 
 /* Voltage to temperature */
@@ -334,13 +414,6 @@ static int32_t qpnp_adc_map_voltage_temp(const struct qpnp_vadc_map_pt *pts,
 	return 0;
 }
 
-/**
-    问题原因:电池温度异常偏高导致关机
-    解决方法：电池温度达到关机温度时，曾加PMIC温度判断
-*/	
-#ifdef CONFIG_ZTEMT_CHARGE
-extern void store_batt_therm_mv(int batt_temp_mv);
-#endif
 static int32_t qpnp_adc_map_temp_voltage(const struct qpnp_vadc_map_pt *pts,
 		uint32_t tablesize, int32_t input, int64_t *output)
 {
@@ -382,12 +455,6 @@ static int32_t qpnp_adc_map_temp_voltage(const struct qpnp_vadc_map_pt *pts,
 			(pts[i].y - pts[i-1].y))+
 			pts[i-1].x);
 	}
-#ifdef CONFIG_ZTEMT_CHARGE
-	if(*output > 670){
-		store_batt_therm_mv(input);
-		printk("_%s: >> ZTEMT >> : batt_temp_mv=%d batt_temp=%lld\n",__func__,input,*output);
-	}
-#endif
 
 	return 0;
 }
@@ -418,7 +485,8 @@ static int64_t qpnp_adc_scale_ratiometric_calib(int32_t adc_code,
 	return adc_voltage;
 }
 
-int32_t qpnp_adc_scale_pmic_therm(int32_t adc_code,
+int32_t qpnp_adc_scale_pmic_therm(struct qpnp_vadc_chip *vadc,
+		int32_t adc_code,
 		const struct qpnp_adc_properties *adc_properties,
 		const struct qpnp_vadc_chan_properties *chan_properties,
 		struct qpnp_vadc_result *adc_chan_result)
@@ -462,7 +530,7 @@ int32_t qpnp_adc_scale_pmic_therm(int32_t adc_code,
 }
 EXPORT_SYMBOL(qpnp_adc_scale_pmic_therm);
 
-int32_t qpnp_adc_scale_millidegc_pmic_voltage_thr(
+int32_t qpnp_adc_scale_millidegc_pmic_voltage_thr(struct qpnp_vadc_chip *chip,
 		struct qpnp_adc_tm_btm_param *param,
 		uint32_t *low_threshold, uint32_t *high_threshold)
 {
@@ -470,7 +538,7 @@ int32_t qpnp_adc_scale_millidegc_pmic_voltage_thr(
 	int64_t low_output = 0, high_output = 0;
 	int rc = 0, sign = 0;
 
-	rc = qpnp_get_vadc_gain_and_offset(&btm_param, CALIB_ABSOLUTE);
+	rc = qpnp_get_vadc_gain_and_offset(chip, &btm_param, CALIB_ABSOLUTE);
 	if (rc < 0) {
 		pr_err("Could not acquire gain and offset\n");
 		return rc;
@@ -517,7 +585,8 @@ EXPORT_SYMBOL(qpnp_adc_scale_millidegc_pmic_voltage_thr);
 /* Scales the ADC code to degC using the mapping
  * table for the XO thermistor.
  */
-int32_t qpnp_adc_tdkntcg_therm(int32_t adc_code,
+int32_t qpnp_adc_tdkntcg_therm(struct qpnp_vadc_chip *chip,
+		int32_t adc_code,
 		const struct qpnp_adc_properties *adc_properties,
 		const struct qpnp_vadc_chan_properties *chan_properties,
 		struct qpnp_vadc_result *adc_chan_result)
@@ -540,7 +609,8 @@ int32_t qpnp_adc_tdkntcg_therm(int32_t adc_code,
 }
 EXPORT_SYMBOL(qpnp_adc_tdkntcg_therm);
 
-int32_t qpnp_adc_scale_batt_therm(int32_t adc_code,
+int32_t qpnp_adc_scale_batt_therm(struct qpnp_vadc_chip *chip,
+		int32_t adc_code,
 		const struct qpnp_adc_properties *adc_properties,
 		const struct qpnp_vadc_chan_properties *chan_properties,
 		struct qpnp_vadc_result *adc_chan_result)
@@ -558,7 +628,8 @@ int32_t qpnp_adc_scale_batt_therm(int32_t adc_code,
 }
 EXPORT_SYMBOL(qpnp_adc_scale_batt_therm);
 
-int32_t qpnp_adc_scale_qrd_batt_therm(int32_t adc_code,
+int32_t qpnp_adc_scale_qrd_batt_therm(struct qpnp_vadc_chip *chip,
+		int32_t adc_code,
 		const struct qpnp_adc_properties *adc_properties,
 		const struct qpnp_vadc_chan_properties *chan_properties,
 		struct qpnp_vadc_result *adc_chan_result)
@@ -576,7 +647,45 @@ int32_t qpnp_adc_scale_qrd_batt_therm(int32_t adc_code,
 }
 EXPORT_SYMBOL(qpnp_adc_scale_qrd_batt_therm);
 
-int32_t qpnp_adc_scale_therm_pu1(int32_t adc_code,
+int32_t qpnp_adc_scale_qrd_skuaa_batt_therm(struct qpnp_vadc_chip *chip,
+		int32_t adc_code,
+		const struct qpnp_adc_properties *adc_properties,
+		const struct qpnp_vadc_chan_properties *chan_properties,
+		struct qpnp_vadc_result *adc_chan_result)
+{
+	int64_t bat_voltage = 0;
+
+	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
+			adc_properties, chan_properties);
+
+	return qpnp_adc_map_temp_voltage(
+			adcmap_qrd_skuaa_btm_threshold,
+			ARRAY_SIZE(adcmap_qrd_skuaa_btm_threshold),
+			bat_voltage,
+			&adc_chan_result->physical);
+}
+EXPORT_SYMBOL(qpnp_adc_scale_qrd_skuaa_batt_therm);
+
+int32_t qpnp_adc_scale_qrd_skug_batt_therm(struct qpnp_vadc_chip *chip,
+		int32_t adc_code,
+		const struct qpnp_adc_properties *adc_properties,
+		const struct qpnp_vadc_chan_properties *chan_properties,
+		struct qpnp_vadc_result *adc_chan_result)
+{
+	int64_t bat_voltage = 0;
+
+	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
+			adc_properties, chan_properties);
+
+	return qpnp_adc_map_temp_voltage(
+			adcmap_qrd_skug_btm_threshold,
+			ARRAY_SIZE(adcmap_qrd_skug_btm_threshold),
+			bat_voltage,
+			&adc_chan_result->physical);
+}
+EXPORT_SYMBOL(qpnp_adc_scale_qrd_skug_batt_therm);
+int32_t qpnp_adc_scale_therm_pu1(struct qpnp_vadc_chip *chip,
+		int32_t adc_code,
 		const struct qpnp_adc_properties *adc_properties,
 		const struct qpnp_vadc_chan_properties *chan_properties,
 		struct qpnp_vadc_result *adc_chan_result)
@@ -594,7 +703,8 @@ int32_t qpnp_adc_scale_therm_pu1(int32_t adc_code,
 }
 EXPORT_SYMBOL(qpnp_adc_scale_therm_pu1);
 
-int32_t qpnp_adc_scale_therm_pu2(int32_t adc_code,
+int32_t qpnp_adc_scale_therm_pu2(struct qpnp_vadc_chip *chip,
+		int32_t adc_code,
 		const struct qpnp_adc_properties *adc_properties,
 		const struct qpnp_vadc_chan_properties *chan_properties,
 		struct qpnp_vadc_result *adc_chan_result)
@@ -612,13 +722,14 @@ int32_t qpnp_adc_scale_therm_pu2(int32_t adc_code,
 }
 EXPORT_SYMBOL(qpnp_adc_scale_therm_pu2);
 
-int32_t qpnp_adc_tm_scale_voltage_therm_pu2(uint32_t reg, int64_t *result)
+int32_t qpnp_adc_tm_scale_voltage_therm_pu2(struct qpnp_vadc_chip *chip,
+					uint32_t reg, int64_t *result)
 {
 	int64_t adc_voltage = 0;
 	struct qpnp_vadc_linear_graph param1;
 	int negative_offset;
 
-	qpnp_get_vadc_gain_and_offset(&param1, CALIB_RATIOMETRIC);
+	qpnp_get_vadc_gain_and_offset(chip, &param1, CALIB_RATIOMETRIC);
 
 	adc_voltage = (reg - param1.adc_gnd) * param1.adc_vref;
 	if (adc_voltage < 0) {
@@ -638,12 +749,13 @@ int32_t qpnp_adc_tm_scale_voltage_therm_pu2(uint32_t reg, int64_t *result)
 }
 EXPORT_SYMBOL(qpnp_adc_tm_scale_voltage_therm_pu2);
 
-int32_t qpnp_adc_tm_scale_therm_voltage_pu2(struct qpnp_adc_tm_config *param)
+int32_t qpnp_adc_tm_scale_therm_voltage_pu2(struct qpnp_vadc_chip *chip,
+				struct qpnp_adc_tm_config *param)
 {
 	struct qpnp_vadc_linear_graph param1;
 	int rc;
 
-	qpnp_get_vadc_gain_and_offset(&param1, CALIB_RATIOMETRIC);
+	qpnp_get_vadc_gain_and_offset(chip, &param1, CALIB_RATIOMETRIC);
 
 	rc = qpnp_adc_map_temp_voltage(adcmap_100k_104ef_104fb,
 		ARRAY_SIZE(adcmap_100k_104ef_104fb),
@@ -669,7 +781,8 @@ int32_t qpnp_adc_tm_scale_therm_voltage_pu2(struct qpnp_adc_tm_config *param)
 }
 EXPORT_SYMBOL(qpnp_adc_tm_scale_therm_voltage_pu2);
 
-int32_t qpnp_adc_scale_batt_id(int32_t adc_code,
+int32_t qpnp_adc_scale_batt_id(struct qpnp_vadc_chip *chip,
+		int32_t adc_code,
 		const struct qpnp_adc_properties *adc_properties,
 		const struct qpnp_vadc_chan_properties *chan_properties,
 		struct qpnp_vadc_result *adc_chan_result)
@@ -685,7 +798,8 @@ int32_t qpnp_adc_scale_batt_id(int32_t adc_code,
 }
 EXPORT_SYMBOL(qpnp_adc_scale_batt_id);
 
-int32_t qpnp_adc_scale_default(int32_t adc_code,
+int32_t qpnp_adc_scale_default(struct qpnp_vadc_chip *vadc,
+		int32_t adc_code,
 		const struct qpnp_adc_properties *adc_properties,
 		const struct qpnp_vadc_chan_properties *chan_properties,
 		struct qpnp_vadc_result *adc_chan_result)
@@ -742,12 +856,13 @@ int32_t qpnp_adc_scale_default(int32_t adc_code,
 }
 EXPORT_SYMBOL(qpnp_adc_scale_default);
 
-int32_t qpnp_adc_usb_scaler(struct qpnp_adc_tm_btm_param *param,
+int32_t qpnp_adc_usb_scaler(struct qpnp_vadc_chip *chip,
+		struct qpnp_adc_tm_btm_param *param,
 		uint32_t *low_threshold, uint32_t *high_threshold)
 {
 	struct qpnp_vadc_linear_graph usb_param;
 
-	qpnp_get_vadc_gain_and_offset(&usb_param, CALIB_RATIOMETRIC);
+	qpnp_get_vadc_gain_and_offset(chip, &usb_param, CALIB_RATIOMETRIC);
 
 	*low_threshold = param->low_thr * usb_param.dy;
 	do_div(*low_threshold, usb_param.adc_vref);
@@ -763,14 +878,15 @@ int32_t qpnp_adc_usb_scaler(struct qpnp_adc_tm_btm_param *param,
 }
 EXPORT_SYMBOL(qpnp_adc_usb_scaler);
 
-int32_t qpnp_adc_vbatt_rscaler(struct qpnp_adc_tm_btm_param *param,
+int32_t qpnp_adc_vbatt_rscaler(struct qpnp_vadc_chip *chip,
+		struct qpnp_adc_tm_btm_param *param,
 		uint32_t *low_threshold, uint32_t *high_threshold)
 {
 	struct qpnp_vadc_linear_graph vbatt_param;
 	int rc = 0, sign = 0;
 	int64_t low_thr = 0, high_thr = 0;
 
-	rc = qpnp_get_vadc_gain_and_offset(&vbatt_param, CALIB_ABSOLUTE);
+	rc = qpnp_get_vadc_gain_and_offset(chip, &vbatt_param, CALIB_ABSOLUTE);
 	if (rc < 0)
 		return rc;
 
@@ -805,14 +921,15 @@ int32_t qpnp_adc_vbatt_rscaler(struct qpnp_adc_tm_btm_param *param,
 }
 EXPORT_SYMBOL(qpnp_adc_vbatt_rscaler);
 
-int32_t qpnp_adc_btm_scaler(struct qpnp_adc_tm_btm_param *param,
+int32_t qpnp_adc_btm_scaler(struct qpnp_vadc_chip *chip,
+		struct qpnp_adc_tm_btm_param *param,
 		uint32_t *low_threshold, uint32_t *high_threshold)
 {
 	struct qpnp_vadc_linear_graph btm_param;
 	int64_t low_output = 0, high_output = 0;
 	int rc = 0;
 
-	qpnp_get_vadc_gain_and_offset(&btm_param, CALIB_RATIOMETRIC);
+	qpnp_get_vadc_gain_and_offset(chip, &btm_param, CALIB_RATIOMETRIC);
 
 	pr_debug("warm_temp:%d and cool_temp:%d\n", param->high_temp,
 				param->low_temp);

@@ -617,8 +617,8 @@ static void tspp_sps_complete_tlet(unsigned long data)
 				break;
 
 			if (iovec.addr != channel->waiting->sps.phys_base)
-				pr_err("tspp: buffer mismatch 0x%08x",
-					channel->waiting->sps.phys_base);
+				pr_err("tspp: buffer mismatch %pa",
+					&channel->waiting->sps.phys_base);
 
 			complete = 1;
 			channel->waiting->state = TSPP_BUF_STATE_DATA;
@@ -1706,6 +1706,8 @@ int tspp_close_channel(u32 dev, u32 channel_id)
 	dma_free_coherent(NULL, config->desc.size, config->desc.base,
 		config->desc.phys_base);
 
+	sps_free_endpoint(channel->pipe);
+
 	tspp_destroy_buffers(channel_id, channel);
 	if (channel->dma_pool) {
 		dma_pool_destroy(channel->dma_pool);
@@ -1821,7 +1823,7 @@ int tspp_add_filter(u32 dev, u32 channel_id,
 	}
 
 	if (filter->priority >= TSPP_NUM_PRIORITIES) {
-		pr_err("tspp invalid source");
+		pr_err("tspp invalid filter priority");
 		return -ENOSR;
 	}
 
@@ -1949,6 +1951,10 @@ int tspp_remove_filter(u32 dev, u32 channel_id,
 	if (!pdev) {
 		pr_err("tspp_remove: can't find device %i", dev);
 		return -ENODEV;
+	}
+	if (filter->priority >= TSPP_NUM_PRIORITIES) {
+		pr_err("tspp invalid filter priority");
+		return -ENOSR;
 	}
 	channel = &pdev->channels[channel_id];
 
