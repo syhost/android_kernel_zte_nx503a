@@ -91,7 +91,6 @@
 		qcom,avddn-enable-gpio = <&msmgpio 8 0>;
 		qcom,iovdd-enable-gpio = <&msmgpio 5 0>;
 		qcom,pm-bl-gpio = <&pm8941_gpios 36 0>;
-		qcom,platform-reset-sequence = <1 20 0 200 1 20 2>;
 		qcom,platform-strength-ctrl = [ff 06];
 		qcom,platform-bist-ctrl = [00 00 b1 ff           /* BIST Ctrl settings */
 					   00 00];
