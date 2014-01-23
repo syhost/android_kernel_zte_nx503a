@@ -256,6 +256,11 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		mdelay(2);
 #endif
 
+#ifdef CONFIG_ZTEMT_MIPI_1080P_R63311_SHARP_IPS
+/*on spec ret is only 0->1*/
+		gpio_set_value((ctrl_pdata->rst_gpio), 1);
+		mdelay(20);
+#endif
 #ifdef CONFIG_ZTEMT_LCD_MIPI_COMMON
 /*mayu,3.25*/
 #else
