@@ -19,6 +19,8 @@
 		interrupts = <0 72 0>;
 		vdd-supply = <&gdsc_mdss>;
 
+		qcom,max-bandwidth-low-kbps = <2300000>;
+		qcom,max-bandwidth-high-kbps = <3000000>;
 		qcom,max-clk-rate = <320000000>;
 		qcom,mdss-pipe-vig-off = <0x00001200 0x00001600
 					       0x00001A00>;
@@ -41,6 +43,7 @@
 		qcom,mdss-intf-off = <0x00021100 0x00021300
 					   0x00021500 0x00021700>;
 
+		qcom,mdss-has-wfd-blk;
 		qcom,vbif-settings = <0x0004 0x00000001>,
 				     <0x00D8 0x00000707>,
 				     <0x00F0 0x00000030>,
@@ -63,6 +66,7 @@
 			compatible = "qcom,mdss-fb";
 			qcom,memory-reservation-type = "EBI1";
 			qcom,memory-reservation-size = <0xFF0000>;
+			qcom,memblock-reserve = <0x03200000 0x01E00000>;
 		};
 
 		mdss_fb1: qcom,mdss_fb_external {
@@ -191,9 +195,6 @@
 		reg-names = "edp_base", "mmss_cc_base";
 		vdda-supply = <&pm8941_l12>;
 		gpio-panel-en = <&msmgpio 58 0>;
-		gpio-panel-pwm = <&pm8941_gpios 36 0>;
-		qcom,panel-lpg-channel = <7>; /* LPG Channel 8 */
-		qcom,panel-pwm-period = <53>;
 		qcom,mdss-fb-map = <&mdss_fb0>;
 		gpio-panel-hpd = <&msmgpio 102 0>;
 	};
