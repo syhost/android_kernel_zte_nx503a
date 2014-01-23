@@ -910,13 +910,17 @@ static int qpnp_flash_set(struct qpnp_led_data *led)
 {
 	int rc, error;
 	int val = led->cdev.brightness;
+#ifdef  CONFIG_ZTEMT_CAMERA_PATCH
 
+#else
 	if (led->flash_cfg->torch_enable)
 		led->flash_cfg->current_prgm =
 			(val * TORCH_MAX_LEVEL / led->max_current);
 	else
 		led->flash_cfg->current_prgm =
 			(val * FLASH_MAX_LEVEL / led->max_current);
+#endif
+
 
 	/* Set led current */
 	if (val > 0) {

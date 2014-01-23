@@ -937,6 +937,10 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 {
 	int i, err = 0;
 
+
+	printk("Broadcom enter %s \n", __func__);
+	if(host->index == 1) return 0;
+
 	for (i = 0; i < host->card->sdio_funcs; i++) {
 		struct sdio_func *func = host->card->sdio_func[i];
 		if (func && sdio_func_present(func) && func->dev.driver) {
@@ -974,6 +978,9 @@ static int mmc_sdio_resume(struct mmc_host *host)
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
+	printk("Broadcom enter %s \n", __func__);
+	if(host->index == 1) return 0;
+	
 	/* Basic card reinitialization. */
 	mmc_claim_host(host);
 

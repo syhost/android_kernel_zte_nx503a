@@ -28,6 +28,31 @@
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
 
+
+#ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+extern unsigned int zte_intensity_value;
+extern struct mdss_dsi_ctrl_pdata *zte_mdss_dsi_ctrl;
+extern void zte_mipi_disp_inc(unsigned int state);
+#endif
+#ifdef CONFIG_ZTEMT_MIPI_1080P_R63311_SHARP_IPS
+/*mayu,3.25*/
+#define MAX_LCD_BL_VAL   4095
+#define ZTE_MAX_LCD_BL_VAL 4095  //360 lm
+// 1072 100 lm default 58->1244 ,so 1720-500 减去172做调整
+#define ZTE_LCD_BL_FIX_MAX_VAL 1720
+#define ZTE_LCD_BL_FIX_MIN_VAL 500
+#define ZTE_LCD_BL_FIX_STEP    172
+
+static char sharp_r63311_51[] = {0x51, 0x0f, 0xff};
+
+static struct dsi_cmd_desc sharp_r63311_1080p_bl_cmds = {
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 1, sizeof(sharp_r63311_51)}, sharp_r63311_51
+};
+
+static void sharp_r63311_set_backlight(struct mdss_dsi_ctrl_pdata *ctrl,u32 bl_level);
+
+#endif
+
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	ctrl->pwm_bl = pwm_request(ctrl->pwm_lpg_chan, "lcd-bklt");
@@ -124,6 +149,44 @@ static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
 
+#ifdef CONFIG_ZTEMT_MIPI_1080P_R63311_SHARP_IPS
+static void sharp_r63311_set_backlight(struct mdss_dsi_ctrl_pdata *ctrl,u32 bl_level)
+{
+	struct dcs_cmd_req lcm_bl_cmds;
+
+  if (bl_level < 0)
+		bl_level = 0;
+  
+  if(bl_level > MAX_LCD_BL_VAL) 
+      bl_level = MAX_LCD_BL_VAL; //4095
+
+  if((bl_level < ZTE_LCD_BL_FIX_MAX_VAL)&& (bl_level> ZTE_LCD_BL_FIX_MIN_VAL))
+     bl_level = bl_level - ZTE_LCD_BL_FIX_STEP; 
+    
+
+	if (0 == bl_level) {
+		sharp_r63311_51[1] = 0x00;
+		sharp_r63311_51[2] = 0x00;
+	} else {
+		sharp_r63311_51[1] = (bl_level & 0xf00) >> 8;
+		sharp_r63311_51[2] = bl_level & 0xff;
+	}
+	pr_debug("lcd:%s: bl_level=%d\n", __func__,bl_level);
+
+  memset(&lcm_bl_cmds, 0, sizeof(lcm_bl_cmds));
+  lcm_bl_cmds.cmds = &sharp_r63311_1080p_bl_cmds;
+  lcm_bl_cmds.cmds_cnt = 1;
+	lcm_bl_cmds.flags = CMD_REQ_COMMIT | CMD_CLK_CTRL;
+	lcm_bl_cmds.rlen = 0;
+	lcm_bl_cmds.cb = NULL;
+
+  mdss_dsi_cmdlist_put(ctrl, &lcm_bl_cmds);
+
+
+}
+
+#else
+/*qcom ori*/
 static char led_pwm1[2] = {0x51, 0x0};	/* DTYPE_DCS_WRITE1 */
 static struct dsi_cmd_desc backlight_cmd = {
 	{DTYPE_DCS_WRITE1, 1, 0, 0, 1, sizeof(led_pwm1)},
@@ -147,6 +210,7 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
+#endif
 
 void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 {
@@ -177,9 +241,29 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	pinfo = &(ctrl_pdata->panel_data.panel_info);
 
 	if (enable) {
+#ifdef CONFIG_ZTEMT_LCD_AVDD_NEGATIVE_CONTRL
+/*avdd neg ctl board2 add ,mayu 6.25
+* iovdd and avdd min interval 1ms on lcm spec,
+*but iovdd had sleep 20ms*/
+		if (gpio_is_valid(ctrl_pdata->avdd_neg_en_gpio))
+		  gpio_set_value((ctrl_pdata->avdd_neg_en_gpio), 1);
+#endif
+#ifdef CONFIG_ZTEMT_LCD_MIPI_COMMON
+/*avdd and rst min interval 1ms on lcm spec,mayu,3.25*/
+		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
+		  gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
+
+		mdelay(2);
+#endif
+
+#ifdef CONFIG_ZTEMT_LCD_MIPI_COMMON
+/*mayu,3.25*/
+#else
+/*qcom ori*/
+
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
-
+#endif
 		for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
 			gpio_set_value((ctrl_pdata->rst_gpio),
 				pdata->panel_info.rst_seq[i]);
@@ -201,8 +285,20 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		}
 	} else {
 		gpio_set_value((ctrl_pdata->rst_gpio), 0);
+		
+#ifdef CONFIG_ZTEMT_LCD_AVDD_NEGATIVE_CONTRL
+/*avdd neg ctl board2 add ,mayu 6.25*/
+		if (gpio_is_valid(ctrl_pdata->avdd_neg_en_gpio))
+		  gpio_set_value((ctrl_pdata->avdd_neg_en_gpio), 0);
+#endif
+
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
+
+#ifdef CONFIG_ZTEMT_MIPI_1080P_R63311_SHARP_IPS
+/*avdd off,100ms  iovdd off on lcm spec,mayu add 2013.9.3*/
+		mdelay(100);
+#endif
 	}
 }
 
@@ -291,7 +387,11 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 		mdss_dsi_panel_bklt_pwm(ctrl_pdata, bl_level);
 		break;
 	case BL_DCS_CMD:
+#ifdef CONFIG_ZTEMT_MIPI_1080P_R63311_SHARP_IPS
+    sharp_r63311_set_backlight(ctrl_pdata, bl_level);
+#else
 		mdss_dsi_panel_bklt_dcs(ctrl_pdata, bl_level);
+#endif
 		break;
 	default:
 		pr_err("%s: Unknown bl_ctrl configuration\n",
@@ -319,6 +419,12 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	if (ctrl->on_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
 
+#ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+/*disp color enhance,mayu add*/
+	zte_mdss_dsi_ctrl = ctrl;
+  zte_mipi_disp_inc(zte_intensity_value);
+#endif
+
 	pr_debug("%s:-\n", __func__);
 	return 0;
 }
@@ -339,6 +445,11 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
 	mipi  = &pdata->panel_info.mipi;
+
+#ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+/*disp color enhance,mayu add*/
+	zte_mdss_dsi_ctrl = NULL;
+#endif
 
 	if (ctrl->off_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds);

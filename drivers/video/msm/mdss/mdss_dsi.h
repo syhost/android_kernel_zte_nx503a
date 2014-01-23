@@ -250,6 +250,10 @@ struct mdss_dsi_ctrl_pdata {
 	int mdss_dsi_clk_on;
 	int rst_gpio;
 	int disp_en_gpio;
+#ifdef CONFIG_ZTEMT_LCD_AVDD_NEGATIVE_CONTRL
+/*avdd neg ctl board2 add ,mayu 6.25*/
+  int avdd_neg_en_gpio;
+#endif
 	int disp_te_gpio;
 	int mode_gpio;
 	int rst_gpio_requested;

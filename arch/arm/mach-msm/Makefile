@@ -271,6 +271,9 @@ obj-$(CONFIG_MACH_MSM8930_FLUID) += board-8930-all.o board-8930-regulator-pm8038
 obj-$(CONFIG_PM8921_BMS) += bms-batterydata.o bms-batterydata-desay.o batterydata-lib.o
 obj-$(CONFIG_QPNP_BMS) += bms-batterydata.o bms-batterydata-desay.o batterydata-lib.o
 obj-$(CONFIG_QPNP_BMS) += bms-batterydata-oem.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+#ZTEMT Added
+obj-$(CONFIG_ZTEMT_CHARGE) += bms_ztemt_batterydata_2300mAh.o
+#ZTEMT END
 obj-$(CONFIG_MACH_APQ8064_CDP) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_MACH_APQ8064_MTP) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_MACH_APQ8064_LIQUID) += board-8064-all.o board-8064-regulator.o
@@ -280,9 +283,11 @@ obj-$(CONFIG_ARCH_MSM9615) += board-9615.o devices-9615.o board-9615-regulator.o
 obj-$(CONFIG_ARCH_MSM9615) += clock-local.o clock-9615.o acpuclock-9615.o clock-rpm.o clock-pll.o
 obj-$(CONFIG_ARCH_APQ8084) += board-8084.o board-8084-gpiomux.o
 obj-$(CONFIG_ARCH_APQ8084) += clock-8084.o
-obj-$(CONFIG_ARCH_MSM8974) += board-8974.o board-8974-gpiomux.o
-obj-$(CONFIG_ARCH_MSM8974) += clock-krait-8974.o
-obj-$(CONFIG_ARCH_MSM8974) += clock-local2.o clock-pll.o clock-8974.o clock-rpm.o clock-voter.o clock-mdss-8974.o
+obj-$(CONFIG_BOARD_ZTEMT_NUBIA) += board/
+obj-$(CONFIG_ARCH_MSM8974_ORIG) += board-8974.o board-8974-gpiomux.o
+obj-$(CONFIG_ARCH_MSM8974) += acpuclock-8974.o
+obj-$(CONFIG_BOARD_ZTEMT_NUBIA) += clock-local2.o clock-pll.o clock-rpm.o clock-voter.o clock-mdss-8974.o
+obj-$(CONFIG_ARCH_MSM8974_ORIG) += clock-local2.o clock-pll.o clock-8974.o clock-rpm.o clock-voter.o clock-mdss-8974.o
 obj-$(CONFIG_ARCH_MSM8974) += gdsc.o
 obj-$(CONFIG_ARCH_MSM9625) += gdsc.o
 obj-$(CONFIG_ARCH_MSM8226) += gdsc.o
@@ -422,8 +427,10 @@ obj-$(CONFIG_MSM_CPU_PWRCTL) +=  msm_cpu_pwrctl.o
 obj-$(CONFIG_ARCH_MSM8974) += msm_mpmctr.o
 obj-$(CONFIG_MSM_CPR_REGULATOR) += cpr-regulator.o
 obj-$(CONFIG_CPU_FREQ_MSM) += cpufreq.o
+
 obj-$(CONFIG_MSM_DEVFREQ_CPUBW) += devfreq_cpubw.o
 
+obj-y += board-8974-brcm-wifi.o
 obj-$(CONFIG_WALL_CLK) += wallclk.o
 obj-$(CONFIG_WALL_CLK_SYSFS) += wallclk_sysfs.o
 obj-$(CONFIG_ARCH_RANDOM) += early_random.o

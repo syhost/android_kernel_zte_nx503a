@@ -27,6 +27,11 @@
 #define CDBG(fmt, args...) do { } while (0)
 #endif
 
+#ifdef CONFIG_OIS_DEBUG
+#define CDBG_OIS(fmt, args...) pr_err(fmt, ##args)
+#else
+#define CDBG_OIS(fmt, args...) do { } while (0)
+#endif
 static int32_t msm_sensor_enable_i2c_mux(struct msm_camera_i2c_conf *i2c_conf)
 {
 	struct v4l2_subdev *i2c_mux_sd =
@@ -957,13 +962,390 @@ static struct msm_cam_clk_info cam_8610_clk_info[] = {
 };
 
 static struct msm_cam_clk_info cam_8974_clk_info[] = {
+	#ifdef CONFIG_ZTEMT_CAMERA_MCLK_24M
 	[SENSOR_CAM_MCLK] = {"cam_src_clk", 24000000},
+	#else
+       [SENSOR_CAM_MCLK] = {"cam_src_clk", 19200000},
+	#endif
 	[SENSOR_CAM_CLK] = {"cam_clk", 0},
 };
+/* ZTEMT: Jinghongliang Add for Manual AF Mode ----Start*/
+extern void ZtemtMoveFocus(unsigned short reg_addr, unsigned char write_data_8);
+/* ZTEMT: Jinghongliang Add for Manual AF Mode ----End*/
+
+#ifdef CONFIG_ZTEMT_CAMERA_OIS
+extern void RegReadA(unsigned short reg_addr, unsigned char *read_data_8);
+extern void RegWriteA(unsigned short reg_addr, unsigned char write_data_8);
+extern void RamReadA(unsigned short ram_addr, void *read_data_16);
+extern void RamWriteA(unsigned short ram_addr, unsigned short write_data_16);
+extern void RamRead32A(unsigned short ram_addr, void *read_data_32);
+extern void RamWrite32A(unsigned short ram_addr, unsigned long write_data_32);
+
+extern unsigned char RtnCen(unsigned char	UcCmdPar);
+extern void SetPanTiltMode(unsigned char UcPnTmod);
+
+extern void OisEna(void);
+extern void	IniSet( void );
+extern void	SrvCon( unsigned char	UcDirSel, unsigned char	UcSwcCon );
+extern void	S2cPro( unsigned char uc_mode );
+extern void msm_ois_init_cci(void);
+extern void msm_ois_release_cci(void);
+
+int ois_init_flag_up=0;
+                   
+unsigned char read_otp_ready_flag=0;
+
+/* 16bits RAM */
+unsigned short  hall_offset_x=0; 			   
+unsigned short  hall_offset_y=0; 
+unsigned short  hall_bias_x=0; 
+unsigned short  hall_bias_y=0; 
+unsigned short  hall_ad_offset_x=0; 
+unsigned short  hall_ad_offset_y=0; 
+unsigned short  loop_gain_x=0; 
+unsigned short  loop_gain_y=0; 
+
+/* 8bits Register */
+unsigned char gyro_offset_x_msb=0;
+unsigned char gyro_offset_x_lsb=0;			   
+unsigned char gyro_offset_y_msb=0;
+unsigned char gyro_offset_y_lsb=0;
+
+/* 32bits RAM */ 
+unsigned long  gyro_gain_x=0;
+unsigned char  gyro_gain_x_31_24=0;
+unsigned char  gyro_gain_x_23_16=0;
+unsigned char  gyro_gain_x_15_8=0;
+unsigned char  gyro_gain_x_7_0=0;
+unsigned long  gyro_gain_y=0;
+unsigned char  gyro_gain_y_31_24=0;
+unsigned char  gyro_gain_y_23_16=0;
+unsigned char  gyro_gain_y_15_8=0;
+unsigned char  gyro_gain_y_7_0=0;
+
+/* 8bits Register */
+unsigned char osc_value=1;
+/*ZTEMT: Jinghongliang Add for Read AF OTP  ---Start*/
+unsigned short af_start_value = 0;
+unsigned short af_infinity_value = 0;
+unsigned short af_macro_value = 0;
+/*ZTEMT: Jinghongliang Add for Read AF OTP  ---End*/
+
+#define OTP_PAGE_ADDR			0x3B02
+#define	OTP_READ_MODE_ADDR		0x3B00
+#define	OTP_READ_READY_ADDR		0x3B01
+/*ZTEMT: Jinghongliang Add for Read AF OTP  ---Start*/
+#define AF_START_CURRENT        0x3B04
+#define AF_START_INFINITY       0x3B06
+#define AF_START_MACRO          0X3B08
+/*ZTEMT: Jinghongliang Add for Read AF OTP  ---End*/
+
+#define HALL_OFFSET_X_ADDR		0x3B14
+#define HALL_OFFSET_Y_ADDR		0x3B16
+#define HALL_BIAS_X_ADDR		0x3B18
+#define HALL_BIAS_Y_ADDR		0x3B1A
+#define HALL_AD_OFFSET_X_ADDR	0x3B1C
+#define HALL_AD_OFFSET_Y_ADDR	0x3B1E
+#define LOOP_GAIN_X_ADDR		0x3B20
+#define LOOP_GAIN_Y_ADDR		0x3B22
+
+#define	GYRO_OFFSET_X_MSB_ADDR	0x3B28
+#define	GYRO_OFFSET_X_LSB_ADDR	0x3B29
+#define	GYRO_OFFSET_Y_MSB_ADDR	0x3B2A
+#define	GYRO_OFFSET_Y_LSB_ADDR	0x3B2B
+
+#define GYRO_GAIN_X_31_24_ADDR	0x3B34
+#define GYRO_GAIN_X_23_16_ADDR	0x3B35
+#define GYRO_GAIN_X_15_8_ADDR	0x3B36
+#define GYRO_GAIN_X_7_0_ADDR	0x3B37
+#define GYRO_GAIN_Y_31_24_ADDR	0x3B38
+#define GYRO_GAIN_Y_23_16_ADDR	0x3B39
+#define GYRO_GAIN_Y_15_8_ADDR	0x3B3A
+#define GYRO_GAIN_Y_7_0_ADDR	0x3B3B
+
+#define OSC_VALUE_ADDR			0x3B2C
+
+//add code for ois version D,just need for old module
+#if 0
+unsigned short  read_loop_gain_x=0;
+unsigned short  read_loop_gain_y=0;
+unsigned long  read_gyro_gain_x =0;
+unsigned long  read_loop_gain_x_multipy =0;
+unsigned long  read_loop_gain_y_multipy =0;
+
+unsigned short  temp_loop_gain_x=0;
+unsigned short  temp_loop_gain_y=0;
+
+unsigned short UsRltVal1=0;
+unsigned short UsRltVal2=0;
+#endif
+//end code for ois version D,just need for old module
+
+unsigned long otp_duration = HZ/1000;
+
+static void imx135_ois_otp(struct work_struct *work)
+{
+	struct msm_sensor_ctrl_t *s_ctrl = container_of(to_delayed_work(work),
+					struct msm_sensor_ctrl_t, zte_otp_worker);
+	int rc;
+	uint16_t page_number  = 14;
+	int32_t count = 0;
+	mutex_lock(&s_ctrl->zte_otp_mutex);
+	msm_ois_init_cci();
+	//printk("sss e\n");
+	IniSet();
+	//printk("sss x\n");
+	do{
+		CDBG_OIS("<ZTEMT_CAM>%s, page number is %d\n",__func__,page_number);
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(
+					s_ctrl->sensor_i2c_client,OTP_PAGE_ADDR,
+					page_number, MSM_CAMERA_I2C_BYTE_DATA);
+
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(
+					s_ctrl->sensor_i2c_client,OTP_READ_MODE_ADDR,
+					0x01, MSM_CAMERA_I2C_BYTE_DATA);
+		mdelay(10);
+		for(count = 0;count < 10;count++){
+			/* read the OTP ready flag */
+			rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+					s_ctrl->sensor_i2c_client,OTP_READ_READY_ADDR,
+					(uint16_t *)&read_otp_ready_flag, MSM_CAMERA_I2C_BYTE_DATA);
+			
+			if((read_otp_ready_flag & 0x01) == 0x01){
+			/* check the correct page */
+				rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				     s_ctrl->sensor_i2c_client,OSC_VALUE_ADDR,
+				     (uint16_t *)&osc_value, MSM_CAMERA_I2C_BYTE_DATA);
+				CDBG_OIS("osc_value = 0x%x,count = %d\n",osc_value,count);
+				break;
+			}
+			mdelay(10);
+		}
+		page_number = page_number -1;
+	}while(osc_value == 0x00 && (page_number > 11));
+	if ((read_otp_ready_flag & 0x01) == 0x01){
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,HALL_OFFSET_X_ADDR,
+				(uint16_t *)&hall_offset_x, MSM_CAMERA_I2C_WORD_DATA);
+		CDBG_OIS("hall_offset_x = 0x%x\n",hall_offset_x);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,HALL_OFFSET_Y_ADDR,
+				(uint16_t *)&hall_offset_y, MSM_CAMERA_I2C_WORD_DATA);
+		CDBG_OIS("hall_offset_y = 0x%x\n",hall_offset_y);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,HALL_BIAS_X_ADDR,
+				(uint16_t *)&hall_bias_x, MSM_CAMERA_I2C_WORD_DATA);
+		CDBG_OIS("hall_bias_x = 0x%x\n",hall_bias_x);
+
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,HALL_BIAS_Y_ADDR,
+				(uint16_t *)&hall_bias_y, MSM_CAMERA_I2C_WORD_DATA);
+		CDBG_OIS("hall_bias_y = 0x%x\n",hall_bias_y);
+
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,HALL_AD_OFFSET_X_ADDR,
+				(uint16_t *)&hall_ad_offset_x, MSM_CAMERA_I2C_WORD_DATA);
+		CDBG_OIS("hall_ad_offset_x = 0x%x\n",hall_ad_offset_x);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,HALL_AD_OFFSET_Y_ADDR,
+				(uint16_t *)&hall_ad_offset_y, MSM_CAMERA_I2C_WORD_DATA);
+		CDBG_OIS("hall_ad_offset_y = 0x%x\n",hall_ad_offset_y);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,LOOP_GAIN_X_ADDR,
+				(uint16_t *)&loop_gain_x, MSM_CAMERA_I2C_WORD_DATA);
+		CDBG_OIS("loop_gain_x = 0x%x\n",loop_gain_x);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,LOOP_GAIN_Y_ADDR,
+				(uint16_t *)&loop_gain_y, MSM_CAMERA_I2C_WORD_DATA);
+		CDBG_OIS("loop_gain_y = 0x%x\n",loop_gain_y);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_OFFSET_X_MSB_ADDR,
+				(uint16_t *)&gyro_offset_x_msb, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_offset_x_msb = 0x%x\n",gyro_offset_x_msb);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_OFFSET_X_LSB_ADDR,
+				(uint16_t *)&gyro_offset_x_lsb, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_offset_x_lsb = 0x%x\n",gyro_offset_x_lsb);
+
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_OFFSET_Y_MSB_ADDR,
+				(uint16_t *)&gyro_offset_y_msb, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_offset_y_msb = 0x%x\n",gyro_offset_y_msb);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_OFFSET_Y_LSB_ADDR,
+				(uint16_t *)&gyro_offset_y_lsb, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_offset_y_lsb = 0x%x\n",gyro_offset_y_lsb);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,OSC_VALUE_ADDR,
+				(uint16_t *)&osc_value, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("osc_value = 0x%x\n",osc_value);
+
+	}else{
+		printk("OIS OTP Read OSC_VALUE Failed!\n");
+	}
+
+	page_number = 14;
+	read_otp_ready_flag = 0;
+	do{
+		CDBG_OIS("<ZTEMT_CAM>%s, page_Gyro_gain number is %d\n",__func__,page_number);
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(
+					s_ctrl->sensor_i2c_client,OTP_PAGE_ADDR,
+					page_number, MSM_CAMERA_I2C_BYTE_DATA);
+
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(
+					s_ctrl->sensor_i2c_client,OTP_READ_MODE_ADDR,
+					0x01, MSM_CAMERA_I2C_BYTE_DATA);
+		mdelay(10);
+		for(count = 0;count < 10;count++){
+			/* read the OTP ready flag */
+			rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+					s_ctrl->sensor_i2c_client,OTP_READ_READY_ADDR,
+					(uint16_t *)&read_otp_ready_flag, MSM_CAMERA_I2C_BYTE_DATA);
+			
+			if((read_otp_ready_flag & 0x01) == 0x01){
+				/* check the correct page */
+				rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+						s_ctrl->sensor_i2c_client,GYRO_GAIN_X_31_24_ADDR,
+						(uint16_t *)&gyro_gain_x_31_24, MSM_CAMERA_I2C_BYTE_DATA);
+				CDBG_OIS("gyro_gain_x_31_24 = 0x%x\n",gyro_gain_x_31_24);
+				break;
+			}
+		mdelay(10);
+		}
+		page_number = page_number -1;
+	}while(gyro_gain_x_31_24 == 0x00 && (page_number > 11));
+
+	if ((read_otp_ready_flag & 0x01) == 0x01){
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_GAIN_X_31_24_ADDR,
+				(uint16_t *)&gyro_gain_x_31_24, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_gain_x_31_24 = 0x%x\n",gyro_gain_x_31_24);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_GAIN_X_23_16_ADDR,
+				(uint16_t *)&gyro_gain_x_23_16, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_gain_x_23_16 = 0x%x\n",gyro_gain_x_23_16);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_GAIN_X_15_8_ADDR,
+				(uint16_t *)&gyro_gain_x_15_8, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_gain_x_15_8 = 0x%x\n",gyro_gain_x_15_8);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_GAIN_X_7_0_ADDR,
+				(uint16_t *)&gyro_gain_x_7_0, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_gain_x_7_0 = 0x%x\n",gyro_gain_x_7_0);
+		
+		gyro_gain_x = (gyro_gain_x_31_24 <<24) | (gyro_gain_x_23_16 <<16)|(gyro_gain_x_15_8<<8)|gyro_gain_x_7_0;
+
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_GAIN_Y_31_24_ADDR,
+				(uint16_t *)&gyro_gain_y_31_24, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_gain_y_31_24 = 0x%x\n",gyro_gain_y_31_24);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_GAIN_Y_23_16_ADDR,
+				(uint16_t *)&gyro_gain_y_23_16, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_gain_y_23_16 = 0x%x\n",gyro_gain_y_23_16);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_GAIN_Y_15_8_ADDR,
+				(uint16_t *)&gyro_gain_y_15_8, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_gain_y_15_8 = 0x%x\n",gyro_gain_y_15_8);
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client,GYRO_GAIN_Y_7_0_ADDR,
+				(uint16_t *)&gyro_gain_y_7_0, MSM_CAMERA_I2C_BYTE_DATA);
+		CDBG_OIS("gyro_gain_y_7_0 = 0x%x\n",gyro_gain_y_7_0);
+		
+		gyro_gain_y = (gyro_gain_y_31_24 <<24) | (gyro_gain_y_23_16 <<16)|(gyro_gain_y_15_8<<8)|gyro_gain_y_7_0;
+	}else{
+		printk("OIS OTP Read GYRO GAIN Failed!\n");
+	}
+	RamWriteA(0x1114 ,hall_offset_x );
+	RamWriteA(0x1116 ,hall_offset_y);
+	RamWriteA(0x1115 ,hall_bias_x );
+	RamWriteA(0x1117 ,hall_bias_y );
+	RamWriteA(0x1102 ,hall_ad_offset_x );
+	RamWriteA(0x1105 ,hall_ad_offset_y );
+	RamWriteA(0x132A ,loop_gain_x );
+	RamWriteA(0x136A ,loop_gain_y );
+	RegWriteA(0x03A0,gyro_offset_x_msb);
+	RegWriteA(0x03A1,gyro_offset_x_lsb);
+	RegWriteA(0x03A2,gyro_offset_y_msb);
+	RegWriteA(0x03A3,gyro_offset_y_lsb);
+	RamWrite32A(0x1828,gyro_gain_x);
+	RamWrite32A(0x1928,gyro_gain_y);
+	RegWriteA(0x0264,osc_value);
+	//add code for ois version D,just need for old module
+#if 0
+	RamReadA(0x132A ,&read_loop_gain_x );
+	RamReadA(0x136A ,&read_loop_gain_y );
+	read_loop_gain_x_multipy = read_loop_gain_x;
+	read_loop_gain_x_multipy = read_loop_gain_x_multipy *56 / 100;   
+	read_loop_gain_y_multipy = read_loop_gain_y;
+	read_loop_gain_y_multipy = read_loop_gain_y_multipy  *56 / 100;
+	temp_loop_gain_x= read_loop_gain_x_multipy & 0xffff;
+	temp_loop_gain_y= read_loop_gain_y_multipy & 0xffff;
+	RamWriteA(0x132A ,temp_loop_gain_x );
+	RamWriteA(0x136A ,temp_loop_gain_y );
+	RegWriteA(0x011A,0x01);
+	RamReadA(0x1828, &UsRltVal1);
+	RamReadA(0x1928, &UsRltVal2);
+	RegWriteA(0x011A,0x00);
+	if (UsRltVal1 > 0x5998 || UsRltVal1 <0x3332)
+		RamWrite32A(0x1828 ,0x3f0ccccd);
+	if (UsRltVal2 > 0xcccd || UsRltVal2 <0xa667)
+		RamWrite32A(0x1928 ,0xbf0ccccd);
+#endif
+ //end code for ois version D,just need for old module
+	RtnCen(0x00);
+	SetPanTiltMode(1);
+	OisEna();
+	mutex_unlock(&s_ctrl->zte_otp_mutex);
+}
+#endif
+
+#if defined(CONFIG_IMX135_069) && defined(CONFIG_IMX135)
+static int RegRead8byte_adaptive(uint16_t reg_addr, struct msm_sensor_ctrl_t *s_ctrl)
+{
+	uint8_t data[1];
+	int32_t rc=0;
+	enum msm_camera_i2c_reg_addr_type addr_type;
+	addr_type = s_ctrl->sensor_i2c_client->addr_type;
+	memset(data, 0x00, 1);
+	s_ctrl->sensor_i2c_client->addr_type = MSM_CAMERA_I2C_BYTE_ADDR;
+
+	rc =  s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read_seq
+	 (
+		s_ctrl->sensor_i2c_client,
+		reg_addr, &data[0],
+		1);
+	if (rc < 0) {
+		pr_err("%s: line %d rc = %d\n", __func__, __LINE__, rc);
+	}
+	s_ctrl->sensor_i2c_client->addr_type = addr_type;
+	CDBG("sss %x \n", data[0]);
+	return rc;
+}
+#endif
 
 int32_t msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int32_t rc = 0, index = 0;
+	#ifdef CONFIG_ZTEMT_CAMERA_OIS
+	int page_number = 14;
+	int count = 0;
+	#endif
 	struct msm_sensor_power_setting_array *power_setting_array = NULL;
 	struct msm_sensor_power_setting *power_setting = NULL;
 	struct msm_camera_sensor_board_info *data = s_ctrl->sensordata;
@@ -1058,6 +1440,50 @@ int32_t msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 				(power_setting->delay * 1000) + 1000);
 		}
 	}
+#if defined(CONFIG_IMX135_069) && defined(CONFIG_IMX135)
+	if (!strncmp(s_ctrl->sensordata->sensor_name, "imx135", 32)) {
+		s_ctrl->sensor_i2c_client->cci_client->sid = 0x1c >> 1;
+		if (s_ctrl->sensor_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
+			rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_util(
+				s_ctrl->sensor_i2c_client, MSM_CCI_INIT);
+			if (rc < 0) {
+				pr_err("%s cci_init failed\n", __func__);
+				goto power_up_failed;
+			}
+		}
+		rc = RegRead8byte_adaptive(0x02, s_ctrl);
+		if (rc < 0) {
+				pr_err("%s cci_init failed\n", __func__);
+				goto power_up_failed;
+		}
+		if (s_ctrl->sensor_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
+			s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_util(
+				s_ctrl->sensor_i2c_client, MSM_CCI_RELEASE);
+		}
+		s_ctrl->sensor_i2c_client->cci_client->sid = s_ctrl->sensordata->slave_info->sensor_slave_addr >> 1;
+	}
+	if (!strncmp(s_ctrl->sensordata->sensor_name, "imx135_069", 32)) {
+		s_ctrl->sensor_i2c_client->cci_client->sid = 0x18 >> 1;
+		if (s_ctrl->sensor_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
+			rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_util(
+				s_ctrl->sensor_i2c_client, MSM_CCI_INIT);
+			if (rc < 0) {
+				pr_err("%s cci_init failed\n", __func__);
+				goto power_up_failed;
+			}
+		}
+		rc = RegRead8byte_adaptive(0x94, s_ctrl);
+		if (rc < 0) {
+				pr_err("%s cci_init failed\n", __func__);
+				goto power_up_failed;
+		}
+		if (s_ctrl->sensor_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
+			s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_util(
+				s_ctrl->sensor_i2c_client, MSM_CCI_RELEASE);
+		}
+		s_ctrl->sensor_i2c_client->cci_client->sid = s_ctrl->sensordata->slave_info->sensor_slave_addr >> 1;
+	}
+#endif
 
 	if (s_ctrl->sensor_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_util(
@@ -1076,6 +1502,58 @@ int32_t msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 		pr_err("%s:%d match id failed rc %d\n", __func__, __LINE__, rc);
 		goto power_up_failed;
 	}
+	#ifdef CONFIG_ZTEMT_CAMERA_OIS
+	if (strcmp(data->sensor_name,"imx135") == 0) {
+	    if (ois_init_flag_up==0) {
+		   	ois_init_flag_up=1;
+		/*ZTEMT: Jinghongliang Add for Read AF OTP  ---Start*/
+		if (s_ctrl->zte_otp_enable == true){
+		do{
+			CDBG_OIS("<ZTEMT_CAM>%s, read OTP page number is %d\n",__func__,page_number);
+			rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(
+					s_ctrl->sensor_i2c_client,OTP_PAGE_ADDR,
+					page_number, MSM_CAMERA_I2C_BYTE_DATA);
+
+			rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(
+					s_ctrl->sensor_i2c_client,OTP_READ_MODE_ADDR,
+					0x01, MSM_CAMERA_I2C_BYTE_DATA);
+			mdelay(10);
+			for(count = 0;count < 10;count++){
+				/* read the OTP ready flag */
+				rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+					s_ctrl->sensor_i2c_client,OTP_READ_READY_ADDR,
+					(uint16_t *)&read_otp_ready_flag, MSM_CAMERA_I2C_BYTE_DATA);
+
+				if((read_otp_ready_flag & 0x01) == 0x01){
+				/* check the correct page */
+				rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				     s_ctrl->sensor_i2c_client,AF_START_CURRENT,
+				     (uint16_t *)&af_start_value, MSM_CAMERA_I2C_WORD_DATA);
+				CDBG_OIS("af_start_value = 0x%x,count = %d\n",af_start_value,count);
+				rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				     s_ctrl->sensor_i2c_client,AF_START_INFINITY,
+				     (uint16_t *)&af_infinity_value, MSM_CAMERA_I2C_WORD_DATA);
+				CDBG_OIS("af_infinity_value = 0x%x,count = %d\n",af_infinity_value,count);
+				rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				     s_ctrl->sensor_i2c_client,AF_START_MACRO,
+				     (uint16_t *)&af_macro_value, MSM_CAMERA_I2C_WORD_DATA);
+				CDBG_OIS("af_macro_value = 0x%x,count = %d\n",af_macro_value,count);
+				break;
+				}
+				mdelay(10);
+			}
+			page_number = page_number -1;
+		  }while(page_number > 11);
+		}
+		/*ZTEMT: Jinghongliang Add for Read AF OTP  ---End*/
+		} else {
+			if (s_ctrl->zte_otp_enable == true)
+				schedule_delayed_work(&s_ctrl->zte_otp_worker,
+					otp_duration);
+		}
+	      
+	}
+	#endif
 
 	CDBG("%s exit\n", __func__);
 	return 0;
@@ -1131,6 +1609,9 @@ power_up_failed:
 	return rc;
 }
 
+#ifdef CONFIG_ZTEMT_CAMERA_OIS
+int ois_init_flag_down=0;
+#endif
 int32_t msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int32_t index = 0;
@@ -1146,6 +1627,22 @@ int32_t msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 		s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_util(
 			s_ctrl->sensor_i2c_client, MSM_CCI_RELEASE);
 	}
+	#ifdef CONFIG_ZTEMT_CAMERA_OIS
+	if (strcmp(data->sensor_name,"imx135") == 0) {
+		if (ois_init_flag_down==0)
+		   	ois_init_flag_down=1;
+		else {
+			mutex_lock(&s_ctrl->zte_otp_mutex);
+		    RtnCen(0x00);
+			SrvCon(0x00,0);  
+			SrvCon(0x01,0);  
+			msm_ois_release_cci();
+			mutex_unlock(&s_ctrl->zte_otp_mutex);
+			if (s_ctrl->zte_otp_enable == true)
+				cancel_delayed_work_sync(&s_ctrl->zte_otp_worker);
+		}
+	}
+	#endif
 
 	for (index = (power_setting_array->size - 1); index >= 0; index--) {
 		CDBG("%s index %d\n", __func__, index);
@@ -1220,7 +1717,7 @@ int32_t msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 		return rc;
 	}
 
-	CDBG("%s: read id: %x expected id %x:\n", __func__, chipid,
+	printk("%s: read id: %x expected id %x:\n", __func__, chipid,
 		s_ctrl->sensordata->slave_info->sensor_id);
 	if (chipid != s_ctrl->sensordata->slave_info->sensor_id) {
 		pr_err("msm_sensor_match_id chip id doesnot match\n");
@@ -1707,6 +2204,58 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		}
 		break;
 	}
+
+//	#ifdef CONFIG_ZTEMT_CAMERA_OIS   //ZTEMT CAMERA FOR OIS MENU ----START
+    case CFG_ENABLE_OIS: {
+		#ifdef CONFIG_ZTEMT_CAMERA_OIS
+		if(!strncmp(s_ctrl->sensordata->sensor_name, "imx135", 32))
+			OisEna();
+		#endif
+		break;
+	}
+
+    case CFG_DISABLE_OIS: {
+		#ifdef CONFIG_ZTEMT_CAMERA_OIS
+		if(!strncmp(s_ctrl->sensordata->sensor_name, "imx135", 32))
+			RtnCen(0x00);
+		#endif
+		break;
+	}
+
+//	#endif                           //ZTEMT CAMERA FOR OIS MENU ----END
+
+	/* ZTEMT: Jinghongliang Add for Manual AF Mode ----Start */
+	case CFG_SET_MANUAL_AF_ZTEMT: {
+			int32_t value = 0;
+			int32_t lens_position = 0;
+			uint16_t MSB = 0;
+			uint16_t LSB = 0;
+			if(copy_from_user(&value,
+				(void *)cdata->cfg.setting,sizeof(int32_t))){
+				pr_err("%s:%d failed\n", __func__, __LINE__);
+				rc = -EFAULT;
+			break;
+			}else{
+				printk("<ZTEMT_CAM> Manual AF value = %d \n",value);
+				if(value < 0 || value > 100){     /* if over total steps, write defaul lens_position*/
+					ZtemtMoveFocus(0x03,0x00);
+		            ZtemtMoveFocus(0x04,0xC8);
+					break;
+				}
+				if(value < 5){
+					lens_position = 150+10*value;
+				}else{
+				lens_position = 166 + 6*value;     /* lens_position = 190+6*(value-4) */
+				}
+				MSB = ( lens_position & 0x0300 ) >> 8;
+				LSB = lens_position & 0xFF;
+				printk("<<<ZTEMT_JHL>>> MSB = 0x%x, LSB = 0x%x\n",MSB,LSB);
+				ZtemtMoveFocus(0x03,MSB);
+		        ZtemtMoveFocus(0x04,LSB);
+			}
+		break;
+	  }
+	/* ZTEMT: Jinghongliang Add for Manual AF Mode ----End */
 	default:
 		rc = -EFAULT;
 		break;
@@ -1841,6 +2390,12 @@ int32_t msm_sensor_platform_probe(struct platform_device *pdev, void *data)
 	}
 	memcpy(s_ctrl->clk_info, cam_8974_clk_info, sizeof(cam_8974_clk_info));
 	s_ctrl->clk_info_size = ARRAY_SIZE(cam_8974_clk_info);
+#ifdef CONFIG_ZTEMT_CAMERA_OIS
+	if (s_ctrl->zte_otp_enable == true) {
+		INIT_DELAYED_WORK(&s_ctrl->zte_otp_worker, imx135_ois_otp);
+		mutex_init(&s_ctrl->zte_otp_mutex);
+	}
+#endif
 	rc = s_ctrl->func_tbl->sensor_power_up(s_ctrl);
 	if (rc < 0) {
 		pr_err("%s %s power up failed\n", __func__,

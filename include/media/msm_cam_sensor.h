@@ -434,6 +434,12 @@ enum msm_sensor_cfg_type_t {
 	CFG_SET_WHITE_BALANCE,
 	CFG_SET_AUTOFOCUS,
 	CFG_CANCEL_AUTOFOCUS,
+
+//	#ifdef CONFIG_ZTEMT_CAMERA_OIS     //ZTEMT CAMERA FOR OIS MENU ----START
+	CFG_ENABLE_OIS,
+	CFG_DISABLE_OIS,
+//  #endif                             //ZTEMT CAMERA FOR OIS MENU ----END
+	CFG_SET_MANUAL_AF_ZTEMT,           //ZTEMT: Jinghongliang Add For Manual AF Mode
 };
 
 enum msm_actuator_cfg_type_t {
@@ -533,6 +539,9 @@ enum af_camera_name {
 	ACTUATOR_MAIN_CAM_3,
 	ACTUATOR_MAIN_CAM_4,
 	ACTUATOR_MAIN_CAM_5,
+	ACTUATOR_MAIN_CAM_6,
+	ACTUATOR_MAIN_CAM_7,
+	ACTUATOR_MAIN_CAM_8,
 	ACTUATOR_WEB_CAM_0,
 	ACTUATOR_WEB_CAM_1,
 	ACTUATOR_WEB_CAM_2,

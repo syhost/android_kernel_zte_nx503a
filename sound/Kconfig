@@ -59,6 +59,12 @@ config SOUND_OSS_CORE_PRECLAIM
 
 source "sound/oss/dmasound/Kconfig"
 
+config ZTEMT_AUDIO_Z5S
+	bool "AUDIO MACRO for ZTEMT Z5S"
+	default n
+	help 
+		AUDIO MACRO for ZTEMT Z5S
+
 if !M68K && !UML
 
 menuconfig SND

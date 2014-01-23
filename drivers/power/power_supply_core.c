@@ -81,6 +81,19 @@ int power_supply_set_present(struct power_supply *psy, bool enable)
 }
 EXPORT_SYMBOL_GPL(power_supply_set_present);
 
+	#ifdef CONFIG_ZTEMT_CHARGE
+int power_supply_set_charger_online(struct power_supply *psy, bool enable)
+{
+	const union power_supply_propval ret = {enable,};
+
+	if (psy->set_property)
+		return psy->set_property(psy, POWER_SUPPLY_PROP_CHARGER_ONLINE,
+								&ret);
+
+	return -ENXIO;
+}
+EXPORT_SYMBOL_GPL(power_supply_set_charger_online);
+#endif
 /**
  * power_supply_set_online - set online state of the power supply
  * @psy:	the power supply to control
@@ -174,6 +187,7 @@ static int __power_supply_changed_work(struct device *dev, void *data)
 	int i;
 
 	for (i = 0; i < psy->num_supplicants; i++)
+		/*这里表示*/
 		if (!strcmp(psy->supplied_to[i], pst->name)) {
 			if (pst->external_power_changed)
 				pst->external_power_changed(pst);

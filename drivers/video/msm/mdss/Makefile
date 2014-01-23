@@ -47,3 +47,8 @@ obj-$(CONFIG_FB_MSM_MDSS_DSI_CTRL_STATUS) += dsi_status_v2.o
 else
 obj-$(CONFIG_FB_MSM_MDSS_DSI_CTRL_STATUS) += mdss_dsi_status.o
 endif
+
+obj-$(CONFIG_SLIMPORT_ANX7808) += slimport_anx7808/
+#tps65132 config AVDD vat,mayu add 2013.8.15
+obj-$(CONFIG_ZTEMT_LCD_AVDD_CONFIG_BY_TPS65132) += zte_tps65132.o
+obj-$(CONFIG_ZTEMT_LCD_DISP_ENHANCE) += zte_disp_enhance.o

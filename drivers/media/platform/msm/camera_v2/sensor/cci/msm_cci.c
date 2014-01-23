@@ -770,6 +770,9 @@ static int32_t msm_cci_release(struct v4l2_subdev *sd)
 	return 0;
 }
 
+#ifdef CONFIG_ZTEMT_CAMERA_OIS
+extern void	SetH1cMod( unsigned char	UcSetNum );
+#endif
 static int32_t msm_cci_config(struct v4l2_subdev *sd,
 	struct msm_camera_cci_ctrl *cci_ctrl)
 {
@@ -788,6 +791,22 @@ static int32_t msm_cci_config(struct v4l2_subdev *sd,
 		break;
 	case MSM_CCI_I2C_WRITE:
 		rc = msm_cci_i2c_write(sd, cci_ctrl);
+		
+		#ifdef CONFIG_ZTEMT_CAMERA_OIS
+		if ((cci_ctrl->cfg.cci_i2c_write_cfg.reg_setting->reg_addr == 0x0016)&&(cci_ctrl->cfg.cci_i2c_write_cfg.reg_setting->reg_data == 0x00))
+		{
+                     SetH1cMod(0x00);
+		}
+		if ((cci_ctrl->cfg.cci_i2c_write_cfg.reg_setting->reg_addr == 0x0016)&&(cci_ctrl->cfg.cci_i2c_write_cfg.reg_setting->reg_data == 0x01))
+		{
+                     SetH1cMod(0x00);    
+		}
+		if ((cci_ctrl->cfg.cci_i2c_write_cfg.reg_setting->reg_addr == 0x0016)&&(cci_ctrl->cfg.cci_i2c_write_cfg.reg_setting->reg_data == 0x03))
+		{
+                     SetH1cMod(0xFF);        
+		}
+		#endif
+		
 		break;
 	case MSM_CCI_GPIO_WRITE:
 		break;

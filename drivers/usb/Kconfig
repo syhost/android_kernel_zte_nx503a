@@ -122,6 +122,13 @@ config USB
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbcore.
 
+config ZTEMT_USB_CDROM
+	boolean "Support for ZTEMT USB Driver Install CDROM"
+	depends on USB
+	default y
+	help
+	  Use ZTEMT USB driver install CDROM in our projects.
+
 source "drivers/usb/core/Kconfig"
 
 source "drivers/usb/dwc3/Kconfig"

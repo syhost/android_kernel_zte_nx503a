@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <mach/board.h>
 #include "mdss_hdmi_edid.h"
+#include "slimport_anx7808/slimport_tx_drv.h"
 
 #define DBC_START_OFFSET 4
 
@@ -99,7 +100,9 @@ struct hdmi_edid_video_mode_property_type {
 	u32	refresh_rate;
 	u32	aspect_ratio_4_3;
 };
-
+#ifdef CONFIG_SLIMPORT_ANX7808
+extern int slimport_read_edid_block(struct hdmi_edid_ctrl *edid_ctrl, int block, uint8_t *edid_buf);
+#endif
 /* LUT is sorted from lowest Active H to highest Active H - ease searching */
 static struct hdmi_edid_video_mode_property_type
 	hdmi_edid_disp_mode_lut[] = {
@@ -290,7 +293,18 @@ static ssize_t hdmi_edid_sysfs_rda_modes(struct device *dev,
 	return ret;
 } /* hdmi_edid_sysfs_rda_modes */
 static DEVICE_ATTR(edid_modes, S_IRUGO, hdmi_edid_sysfs_rda_modes, NULL);
+extern enum SP_LINK_BW slimport_get_link_bw(void);
+static ssize_t hdmi_edid_sysfs_sp_band_width(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
 
+	buf[0] = 0;
+	ret += snprintf(buf+ret, PAGE_SIZE-ret, "%d", slimport_get_link_bw());
+	printk("%s: buf %s\n", __func__, buf);
+	return ret;
+}
+static DEVICE_ATTR(sp_band_width, S_IRUGO, hdmi_edid_sysfs_sp_band_width, NULL);
 static ssize_t hdmi_edid_sysfs_rda_physical_address(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -398,6 +412,7 @@ static struct attribute *hdmi_edid_fs_attrs[] = {
 	&dev_attr_scan_info.attr,
 	&dev_attr_edid_3d_modes.attr,
 	&dev_attr_edid_raw_data.attr,
+	&dev_attr_sp_band_width.attr,
 	NULL,
 };
 
@@ -1425,8 +1440,13 @@ int hdmi_edid_read(void *input)
 		sizeof(edid_ctrl->spkr_alloc_data_block));
 	edid_ctrl->adb_size = 0;
 	edid_ctrl->sadb_size = 0;
-
+#ifdef CONFIG_SLIMPORT_ANX7808
+	if (0)
 	status = hdmi_edid_read_block(edid_ctrl, 0, edid_buf);
+	status = slimport_read_edid_block(edid_ctrl, 0, edid_buf);
+#else
+	status = hdmi_edid_read_block(edid_ctrl, 0, edid_buf);
+#endif
 	if (status || !hdmi_edid_check_header(edid_buf)) {
 		if (!status)
 			status = -EPROTO;
@@ -1450,7 +1470,11 @@ int hdmi_edid_read(void *input)
 			edid_ctrl->sink_mode ? "no" : "yes");
 		break;
 	case 1: /* Read block 1 */
+#ifdef CONFIG_SLIMPORT_ANX7808
+		status = slimport_read_edid_block(edid_ctrl, 1, &edid_buf[0x80]);
+#else
 		status = hdmi_edid_read_block(edid_ctrl, 1, &edid_buf[0x80]);
+#endif
 		if (status) {
 			DEV_ERR("%s: ddc read block(1) failed: %d\n", __func__,
 				status);
@@ -1484,16 +1508,24 @@ int hdmi_edid_read(void *input)
 	case 4:
 		for (i = 1; i <= num_of_cea_blocks; i++) {
 			if (!(i % 2)) {
+#ifdef CONFIG_SLIMPORT_ANX7808
+				status = slimport_read_edid_block(edid_ctrl, i, edid_buf+0x00);
+#else
 				status = hdmi_edid_read_block(
 					edid_ctrl, i, edid_buf + (0x80 * i));
+#endif
 				if (status) {
 					DEV_ERR("%s: read blk(%d) failed:%d\n",
 						__func__, i, status);
 					goto error;
 				}
 			} else {
+#ifdef CONFIG_SLIMPORT_ANX7808
+				status = slimport_read_edid_block(edid_ctrl, i, edid_buf+0x80);
+#else
 				status = hdmi_edid_read_block(
 					edid_ctrl, i, edid_buf + (0x80 * i));
+#endif
 				if (status) {
 					DEV_ERR("%s: read blk(%d) failed:%d\n",
 						__func__, i, status);

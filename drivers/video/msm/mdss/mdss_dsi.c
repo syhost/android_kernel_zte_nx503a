@@ -1230,6 +1230,24 @@ int dsi_panel_device_register(struct device_node *pan_node,
 			return -ENODEV;
 		}
 	}
+	
+#ifdef CONFIG_ZTEMT_LCD_AVDD_NEGATIVE_CONTRL
+/*avdd neg ctl board2 add ,mayu 6.25*/
+	ctrl_pdata->avdd_neg_en_gpio = of_get_named_gpio(pdev->dev.of_node,
+						     "qcom,avddn-enable-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->avdd_neg_en_gpio)) {
+		pr_err("%s:%d, avdd_neg_en_gpio gpio not specified\n",
+						__func__, __LINE__);
+	} else {
+		rc = gpio_request(ctrl_pdata->avdd_neg_en_gpio, "lcd_avdd_neg_enable");
+		if (rc) {
+			pr_err("request reset gpio failed, rc=%d\n",
+			       rc);
+			gpio_free(ctrl_pdata->avdd_neg_en_gpio);
+			return -ENODEV;
+		}
+	}
+#endif
 
 	if (pinfo->type == MIPI_CMD_PANEL) {
 		ctrl_pdata->disp_te_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,

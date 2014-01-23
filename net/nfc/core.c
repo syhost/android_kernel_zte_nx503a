@@ -185,7 +185,8 @@ int nfc_dep_link_up(struct nfc_dev *dev, int target_index, u8 comm_mode)
 {
 	int rc = 0;
 	u8 *gb;
-	size_t gb_len;
+	u8 gb_len;
+	//size_t gb_len;
 
 	pr_debug("dev_name=%s comm %d\n", dev_name(&dev->dev), comm_mode);
 

@@ -44,6 +44,33 @@
    and provided to the battery driver in the units desired for
    their framework which is 0.1DegC. True resolution of 0.1DegC
    will result in the below table size to increase by 10 times */
+#ifdef CONFIG_ZTEMT_CHARGE
+static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
+	{-300, 1626},
+	{-250, 1573},
+	{-200, 1510},
+	{-150, 1438},
+	{-100, 1358},
+	{-50, 1274},
+	{0,   1188},
+	{50,  1103},
+	{100, 1022},
+	{150,  946},
+	{200,  877},
+	{250,  816},
+	{300,  763},
+	{350,  718},
+	{400,  679},
+	{450,  647},
+	{500,  619},
+	{550,  596},
+	{600,  577},
+	{650,  561},
+	{700,  548},
+	{750,  537},
+	{800,  528}
+};
+#else  
 static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{-300,	1642},
 	{-200,	1544},
@@ -129,6 +156,7 @@ static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{780,	208},
 	{790,	203}
 };
+#endif
 
 static const struct qpnp_vadc_map_pt adcmap_qrd_btm_threshold[] = {
 	{-200,	1540},
@@ -414,6 +442,13 @@ static int32_t qpnp_adc_map_voltage_temp(const struct qpnp_vadc_map_pt *pts,
 	return 0;
 }
 
+/**
+    问题原因:电池温度异常偏高导致关机
+    解决方法：电池温度达到关机温度时，曾加PMIC温度判断
+*/	
+#ifdef CONFIG_ZTEMT_CHARGE
+extern void store_batt_therm_mv(int batt_temp_mv);
+#endif
 static int32_t qpnp_adc_map_temp_voltage(const struct qpnp_vadc_map_pt *pts,
 		uint32_t tablesize, int32_t input, int64_t *output)
 {
@@ -455,6 +490,12 @@ static int32_t qpnp_adc_map_temp_voltage(const struct qpnp_vadc_map_pt *pts,
 			(pts[i].y - pts[i-1].y))+
 			pts[i-1].x);
 	}
+#ifdef CONFIG_ZTEMT_CHARGE
+	if(*output > 670){
+		store_batt_therm_mv(input);
+		printk("_%s: >> ZTEMT >> : batt_temp_mv=%d batt_temp=%lld\n",__func__,input,*output);
+	}
+#endif
 
 	return 0;
 }

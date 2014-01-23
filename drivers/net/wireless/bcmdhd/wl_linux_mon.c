@@ -1,25 +1,7 @@
 /*
  * Broadcom Dongle Host Driver (DHD), Linux monitor network interface
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
- * 
- *      Unless you and Broadcom execute a separate written software license
- * agreement governing use of this software, this software is licensed to you
- * under the terms of the GNU General Public License version 2 (the "GPL"),
- * available at http://www.broadcom.com/licenses/GPLv2.php, with the
- * following added to such license:
- * 
- *      As a special exception, the copyright holders of this software give you
- * permission to link this software with independent modules, and to copy and
- * distribute the resulting executable under terms of your choice, provided that
- * you also meet, for each linked independent module, the terms and conditions of
- * the license of that module.  An independent module is a module which is not
- * derived from this software.  The special exception does not apply to any
- * modifications of the software.
- * 
- *      Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a license
- * other than the GPL, without Broadcom's express prior written consent.
+ * $Copyright Open Broadcom Corporation$
  *
  * $Id: dhd_linux_mon.c 280623 2011-08-30 14:49:39Z $
  */
@@ -348,34 +330,24 @@ out:
 int dhd_del_monitor(struct net_device *ndev)
 {
 	int i;
-	bool rollback_lock = false;
 	if (!ndev)
 		return -EINVAL;
 	mutex_lock(&g_monitor.lock);
 	for (i = 0; i < DHD_MAX_IFS; i++) {
 		if (g_monitor.mon_if[i].mon_ndev == ndev ||
 			g_monitor.mon_if[i].real_ndev == ndev) {
+
 			g_monitor.mon_if[i].real_ndev = NULL;
-			if (rtnl_is_locked()) {
-				rtnl_unlock();
-				rollback_lock = true;
-			}
-			unregister_netdev(g_monitor.mon_if[i].mon_ndev);
+			unregister_netdevice(g_monitor.mon_if[i].mon_ndev);
 			free_netdev(g_monitor.mon_if[i].mon_ndev);
 			g_monitor.mon_if[i].mon_ndev = NULL;
 			g_monitor.monitor_state = MONITOR_STATE_INTERFACE_DELETED;
 			break;
 		}
 	}
-	if (rollback_lock) {
-		rtnl_lock();
-		rollback_lock = false;
-	}
 
-	if (g_monitor.monitor_state !=
-	MONITOR_STATE_INTERFACE_DELETED)
-		MON_PRINT("interface not found in monitor IF array, is this a monitor IF? 0x%p\n",
-			ndev);
+	if (g_monitor.monitor_state != MONITOR_STATE_INTERFACE_DELETED)
+		MON_PRINT("IF not found in monitor array, is this a monitor IF? 0x%p\n", ndev);
 	mutex_unlock(&g_monitor.lock);
 
 	return 0;
@@ -395,24 +367,15 @@ int dhd_monitor_uninit(void)
 {
 	int i;
 	struct net_device *ndev;
-	bool rollback_lock = false;
 	mutex_lock(&g_monitor.lock);
 	if (g_monitor.monitor_state != MONITOR_STATE_DEINIT) {
 		for (i = 0; i < DHD_MAX_IFS; i++) {
 			ndev = g_monitor.mon_if[i].mon_ndev;
 			if (ndev) {
-				if (rtnl_is_locked()) {
-					rtnl_unlock();
-					rollback_lock = true;
-				}
-				unregister_netdev(ndev);
+				unregister_netdevice(ndev);
 				free_netdev(ndev);
 				g_monitor.mon_if[i].real_ndev = NULL;
 				g_monitor.mon_if[i].mon_ndev = NULL;
-				if (rollback_lock) {
-					rtnl_lock();
-					rollback_lock = false;
-				}
 			}
 		}
 		g_monitor.monitor_state = MONITOR_STATE_DEINIT;

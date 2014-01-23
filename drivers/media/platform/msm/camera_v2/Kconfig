@@ -118,6 +118,14 @@ config IMX135
 		4 mipi lanes, preview config = 2104 x 1560 at 49 fps,
 		snapshot config = 4208 x 3120 at 24 fps,
 		Video HDR support.
+config IMX135_069
+	bool "Sensor IMX135_069 new back camera liteon 06913ma (BAYER 12M)"
+	depends on MSMB_CAMERA
+	---help---
+		Sony 12 MP Bayer Sensor with auto focus, uses
+		4 mipi lanes, preview config = 2104 x 1560 at 49 fps,
+		snapshot config = 4208 x 3120 at 24 fps,
+		Video HDR support.
 
 config IMX134
 	bool "Sensor IMX134 (BAYER 8M)"
@@ -127,7 +135,7 @@ config IMX134
 		4 mipi lanes full resolution @30fps and
 		HFR @60fps and @120fps
 		Video HDR support.
-
+			       
 config OV2720
 	bool "Sensor OV2720 (BAYER 2M)"
 	depends on MSMB_CAMERA
@@ -249,3 +257,19 @@ config MSM_GEMINI
 	depends on MSMB_CAMERA && (ARCH_MSM7X30 || ARCH_MSM8X60 || ARCH_MSM8960)
 	---help---
 	  Enables support for the Gemini JPEG encoder engine for 8x60.
+config ZTEMT_CAMERA_OIS
+	bool "ztemt camera ois module"
+
+config ZTEMT_AD5816
+	bool "ztemt camera AD5816 driver"
+    ---help---
+      Enables support for the AD5816 Driver for Z5S of IMX135 module
+
+config ZTEMT_CAMERA_MCLK_24M
+	bool "ztemt camera mclk 24m"
+    ---help---
+      Enables support for the camera MCLK for Z5S
+config ZTEMT_CAMERA_PATCH
+	bool "ztemt camera patch"
+    ---help---
+      Qualcomm patch for the camera for Z5S

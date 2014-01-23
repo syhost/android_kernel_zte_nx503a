@@ -24,11 +24,21 @@
 
 /* truncate at 1k */
 #define MDSS_MDP_BUS_FACTOR_SHIFT 10
+#ifdef CONFIG_ZTEMT_LCD_MIPI_COMMON
+/*pr00184530 add bw,mayu add 11.12*/
+#define MDSS_MDP_BUS_FUDGE_FACTOR_IB(val) ((((val) / 2) * 3)*2)
+#define MDSS_MDP_BUS_FUDGE_FACTOR_HIGH_IB(val) ((val << 1)*2)
+#define MDSS_MDP_BUS_FUDGE_FACTOR_AB(val) ((val << 1)*2)
+#define MDSS_MDP_BUS_FLOOR_BW ((3200000000ULL >> MDSS_MDP_BUS_FACTOR_SHIFT)*2)
+#else
+/*qcom oir*/
 /* 1.5 bus fudge factor */
 #define MDSS_MDP_BUS_FUDGE_FACTOR_IB(val) (((val) / 2) * 3)
 #define MDSS_MDP_BUS_FUDGE_FACTOR_HIGH_IB(val) (val << 1)
 #define MDSS_MDP_BUS_FUDGE_FACTOR_AB(val) (val << 1)
 #define MDSS_MDP_BUS_FLOOR_BW (1600000000ULL >> MDSS_MDP_BUS_FACTOR_SHIFT)
+#endif
+
 
 /* 1.25 clock fudge factor */
 #define MDSS_MDP_CLK_FUDGE_FACTOR(val) (((val) * 5) / 4)

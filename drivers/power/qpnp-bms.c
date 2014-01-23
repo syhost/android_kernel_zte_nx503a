@@ -95,6 +95,22 @@
 
 #define QPNP_BMS_DEV_NAME "qcom,qpnp-bms"
 
+#ifdef CONFIG_ZTEMT_CHARGE
+static int debug_mask_bms = 1;
+module_param_named(debug_mask_bms, debug_mask_bms, int, S_IRUGO | S_IWUSR | S_IWGRP);
+#define DBG_BMS(x...) do {if (debug_mask_bms) pr_info(">>ZTEMT_BMS>>  " x); } while (0)
+#endif
+
+#ifdef CONFIG_ZTEMT_CHARGE_X
+//打开调试接口
+#define DEBUG  
+#undef KERN_DEBUG
+#define KERN_DEBUG KERN_INFO
+
+#undef KERN_INFO
+#define KERN_INFO KERN_ERR
+#endif
+
 enum {
 	SHDW_CC,
 	CC
@@ -3324,7 +3340,13 @@ static void battery_insertion_check(struct qpnp_bms_chip *chip)
 /* Returns capacity as a SoC percentage between 0 and 100 */
 static int get_prop_bms_capacity(struct qpnp_bms_chip *chip)
 {
+#ifdef CONFIG_ZTEMT_CHARGE
+	int soc = report_state_of_charge(chip);
+	soc = bound_soc(soc);
+	return soc;
+#else
 	return report_state_of_charge(chip);
+#endif
 }
 
 static void qpnp_bms_external_power_changed(struct power_supply *psy)
@@ -3581,7 +3603,11 @@ static int set_battery_data(struct qpnp_bms_chip *chip)
 	if (chip->batt_type == BATT_DESAY) {
 		batt_data = &desay_5200_data;
 	} else if (chip->batt_type == BATT_PALLADIUM) {
+#ifdef CONFIG_ZTEMT_CHARGE
+		batt_data = &ztemt_2300mAh_data;
+#else
 		batt_data = &palladium_1500_data;
+#endif
 	} else if (chip->batt_type == BATT_OEM) {
 		batt_data = &oem_batt_data;
 	} else if (chip->batt_type == BATT_QRD_4V35_2000MAH) {

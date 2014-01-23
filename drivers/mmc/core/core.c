@@ -642,8 +642,11 @@ static int mmc_stop_request(struct mmc_host *host)
 	}
 	err = mmc_interrupt_hpi(card);
 	if (err) {
+        #ifdef CONFIG_EMMC_UNSUPPORTED_HPI
+        #else
 		pr_err("%s: mmc_interrupt_hpi() failed (%d)\n",
 				mmc_hostname(host), err);
+        #endif
 		goto out;
 	}
 out:
@@ -1033,7 +1036,10 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 	BUG_ON(!card);
 
 	if (!card->ext_csd.hpi_en) {
+        #ifdef CONFIG_EMMC_UNSUPPORTED_HPI
+        #else
 		pr_info("%s: HPI enable bit unset\n", mmc_hostname(card->host));
+        #endif
 		return 1;
 	}
 
@@ -3131,11 +3137,26 @@ int mmc_detect_card_removed(struct mmc_host *host)
 }
 EXPORT_SYMBOL(mmc_detect_card_removed);
 
+
+extern void clear_detect_flag(void);
+extern int check_detect_flag(void);
+
 void mmc_rescan(struct work_struct *work)
 {
 	struct mmc_host *host =
 		container_of(work, struct mmc_host, detect.work);
 	bool extend_wakelock = false;
+
+	if(host->index == 1) {
+		if(check_detect_flag()) {
+			printk("Broadcom enable detect, continue\n");
+			clear_detect_flag();
+		} else {
+			printk("Broadcom didn't enable detect, skip\n");
+			return;
+		}
+	}		
+				
 
 	if (host->rescan_disable)
 		return;
@@ -3344,7 +3365,11 @@ EXPORT_SYMBOL(mmc_card_can_sleep);
 int mmc_flush_cache(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
+    #ifdef CONFIG_EMMC_UNSUPPORTED_HPI
+	int err = 0;
+    #else
 	int err = 0, rc;
+    #endif
 
 	if (!(host->caps2 & MMC_CAP2_CACHE_CTRL))
 		return err;
@@ -3358,10 +3383,13 @@ int mmc_flush_cache(struct mmc_card *card)
 		if (err == -ETIMEDOUT) {
 			pr_err("%s: cache flush timeout\n",
 					mmc_hostname(card->host));
+            #ifdef CONFIG_EMMC_UNSUPPORTED_HPI
+            #else
 			rc = mmc_interrupt_hpi(card);
 			if (rc)
 				pr_err("%s: mmc_interrupt_hpi() failed (%d)\n",
 						mmc_hostname(host), rc);
+            #endif
 		} else if (err) {
 			pr_err("%s: cache flush error %d\n",
 					mmc_hostname(card->host), err);
@@ -3382,7 +3410,11 @@ int mmc_cache_ctrl(struct mmc_host *host, u8 enable)
 {
 	struct mmc_card *card = host->card;
 	unsigned int timeout = card->ext_csd.generic_cmd6_time;
+    #ifdef CONFIG_EMMC_UNSUPPORTED_HPI
+	int err = 0;
+    #else
 	int err = 0, rc;
+    #endif
 
 	if (!(host->caps2 & MMC_CAP2_CACHE_CTRL) ||
 			mmc_card_is_removable(host))
@@ -3403,10 +3435,13 @@ int mmc_cache_ctrl(struct mmc_host *host, u8 enable)
 			if (err == -ETIMEDOUT && !enable) {
 				pr_err("%s:cache disable operation timeout\n",
 						mmc_hostname(card->host));
+                #ifdef CONFIG_EMMC_UNSUPPORTED_HPI
+                #else
 				rc = mmc_interrupt_hpi(card);
 				if (rc)
 					pr_err("%s: mmc_interrupt_hpi() failed (%d)\n",
 							mmc_hostname(host), rc);
+                #endif
 			} else if (err) {
 				pr_err("%s: cache %s error %d\n",
 						mmc_hostname(card->host),
@@ -3432,6 +3467,7 @@ int mmc_suspend_host(struct mmc_host *host)
 {
 	int err = 0;
 
+printk("Broadcom enter %s \n", __func__);
 	if (mmc_bus_needs_resume(host))
 		return 0;
 
@@ -3485,8 +3521,12 @@ int mmc_suspend_host(struct mmc_host *host)
 	}
 	mmc_bus_put(host);
 
-	if (!err && !mmc_card_keep_power(host))
-		mmc_power_off(host);
+	if (!err && !mmc_card_keep_power(host)) {
+        if(host->index != 1)
+            mmc_power_off(host);
+        else
+            mmc_gate_clock(host);
+    }
 
 	return err;
 stop_bkops_err:
@@ -3505,6 +3545,7 @@ int mmc_resume_host(struct mmc_host *host)
 {
 	int err = 0;
 
+printk("Broadcom enter %s \n", __func__);
 	mmc_bus_get(host);
 	if (mmc_bus_manual_resume(host)) {
 		host->bus_resume_flags |= MMC_BUSRESUME_NEEDS_RESUME;
@@ -3514,6 +3555,7 @@ int mmc_resume_host(struct mmc_host *host)
 
 	if (host->bus_ops && !host->bus_dead) {
 		if (!mmc_card_keep_power(host)) {
+            if(host->index != 1) {
 			mmc_power_up(host);
 			mmc_select_voltage(host, host->ocr);
 			/*
@@ -3528,6 +3570,9 @@ int mmc_resume_host(struct mmc_host *host)
 				pm_runtime_set_active(&host->card->dev);
 				pm_runtime_enable(&host->card->dev);
 			}
+            }
+            else
+                mmc_ungate_clock(host);
 		}
 		BUG_ON(!host->bus_ops->resume);
 		err = host->bus_ops->resume(host);

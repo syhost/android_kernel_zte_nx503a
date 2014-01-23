@@ -109,8 +109,8 @@ static int mmc_host_resume(struct device *dev)
 
 static const struct dev_pm_ops mmc_host_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mmc_host_suspend, mmc_host_resume)
-	SET_RUNTIME_PM_OPS(mmc_host_runtime_suspend, mmc_host_runtime_resume,
-			   pm_generic_runtime_idle)
+	//SET_RUNTIME_PM_OPS(mmc_host_runtime_suspend, mmc_host_runtime_resume,
+	//		   pm_generic_runtime_idle) /*insmod broadcom HDH.KO system call runtime suspend crash */
 };
 
 static struct class mmc_host_class = {
@@ -394,6 +394,10 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 {
 	int err;
 	struct mmc_host *host;
+
+	(void)mmc_host_runtime_suspend;
+	(void)mmc_host_runtime_resume;
+
 
 	if (!idr_pre_get(&mmc_host_idr, GFP_KERNEL))
 		return NULL;

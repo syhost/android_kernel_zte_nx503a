@@ -1548,7 +1548,11 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 				   mmc_hostname(card->host));
 			err = 0;
 		} else
+		#ifdef CONFIG_EMMC_UNSUPPORTED_HPI
+			card->ext_csd.hpi_en = 0;//sandisk cannot support this feature.
+		#else
 			card->ext_csd.hpi_en = 1;
+		#endif
 	}
 
 	/*

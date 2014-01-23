@@ -2603,6 +2603,33 @@ static struct sdhci_ops sdhci_msm_ops = {
 	.enable_controller_clock = sdhci_msm_enable_controller_clock,
 };
 
+
+//shaohua add
+static void
+msm_check_status(unsigned long data)
+{
+	struct sdhci_host *host = (struct sdhci_host *)data;
+
+	mmc_detect_change(host->mmc, 0);
+}
+
+
+static void
+msm_status_notify_cb(int card_present, void *dev_id)
+{
+	struct sdhci_host *host = dev_id;
+
+	printk("shaohua, %s: card_present %d\n", mmc_hostname(host->mmc),
+	       card_present);
+	msm_check_status((unsigned long) host);
+}
+
+extern int bcm_wifi_status_register(
+                        void (*callback)(int card_present, void *dev_id),
+                        void *dev_id);
+
+//shaohua add
+
 static int __devinit sdhci_msm_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
@@ -2910,7 +2937,10 @@ static int __devinit sdhci_msm_probe(struct platform_device *pdev)
 	} else {
 		dev_err(&pdev->dev, "%s: Failed to set dma mask\n", __func__);
 	}
-
+//shaohua add
+	if(host->mmc->index == 1)
+		bcm_wifi_status_register(msm_status_notify_cb, host);
+//shaohua add
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_err(&pdev->dev, "Add host failed (%d)\n", ret);

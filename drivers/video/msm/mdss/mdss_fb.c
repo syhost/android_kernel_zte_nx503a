@@ -688,6 +688,9 @@ void mdss_fb_update_backlight(struct msm_fb_data_type *mfd)
 		if ((pdata) && (pdata->set_backlight)) {
 			mutex_lock(&mfd->bl_lock);
 			mfd->bl_level = mfd->unset_bl_level;
+#ifdef CONFIG_ZTEMT_LCD_MIPI_COMMON
+			mdelay(100);
+#endif
 			pdata->set_backlight(pdata, mfd->bl_level);
 			mfd->bl_level_old = mfd->unset_bl_level;
 			mutex_unlock(&mfd->bl_lock);

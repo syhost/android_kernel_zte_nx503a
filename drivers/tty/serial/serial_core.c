@@ -1267,6 +1267,11 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 
 	pr_debug("uart_close(%d) called\n", uport->line);
 
+	//modify for crash issue
+	if (uport->ops->pm)
+		uport->ops->pm(uport, 1, state->pm_state);
+	//modify end
+
 	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
 

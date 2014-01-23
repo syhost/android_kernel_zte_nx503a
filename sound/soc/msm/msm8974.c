@@ -113,6 +113,23 @@ void *def_taiko_mbhc_cal(void);
 static int msm_snd_enable_codec_ext_clk(struct snd_soc_codec *codec, int enable,
 					bool dapm);
 
+#ifdef CONFIG_ZTEMT_AUDIO_Z5S
+static struct wcd9xxx_mbhc_config mbhc_cfg = {
+	.read_fw_bin = false,
+	.calibration = NULL,
+	.micbias = MBHC_MICBIAS2,
+	.mclk_cb_fn = msm_snd_enable_codec_ext_clk,
+	.mclk_rate = TAIKO_EXT_CLK_RATE,
+	.gpio = 0,
+	.gpio_irq = 0,
+	.gpio_level_insert = 0,
+	.detect_extn_cable = true,
+	.micbias_enable_flags = 1 << MBHC_MICBIAS_ENABLE_REGULAR_HEADSET,
+	.insert_detect = true,
+	.swap_gnd_mic = NULL,
+	.cs_enable_flags = 0,
+};
+#else
 static struct wcd9xxx_mbhc_config mbhc_cfg = {
 	.read_fw_bin = false,
 	.calibration = NULL,
@@ -132,6 +149,7 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
 	.do_recalibration = true,
 	.use_vddio_meas = true,
 };
+#endif
 
 struct msm_auxpcm_gpio {
 	unsigned gpio_no;

@@ -106,9 +106,9 @@ static ssize_t lpm_levels_attr_show(
 	struct kobject *kobj, struct kobj_attribute *attr, char *buf);
 static ssize_t lpm_levels_attr_store(struct kobject *kobj,
 	struct kobj_attribute *attr, const char *buf, size_t count);
-
-
-static int lpm_lvl_dbg_msk;
+	
+//dlhong enable lpm debug
+static int lpm_lvl_dbg_msk = 1;
 
 module_param_named(
 	debug_mask, lpm_lvl_dbg_msk, int, S_IRUGO | S_IWUSR | S_IWGRP
