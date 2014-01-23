@@ -244,7 +244,7 @@
 				<86 512 500 800>;
 	};
 
-	serial@f991e000 {
+	blsp1_uart1: serial@f991e000 {
 		compatible = "qcom,msm-lsuart-v14";
 		reg = <0xf991e000 0x1000>;
 		interrupts = <0 108 0>;
