@@ -12,7 +12,7 @@
 
 &soc {
 
-	qcom,mdss_dsi_shartp_1080p_video {
+	dsi_shartp_1080_vid: qcom,mdss_dsi_shartp_1080p_video {
 		compatible = "qcom,mdss-dsi-panel";
 		status = "disable";
         qcom,mdss-dsi-panel-name = "shartp 1080p video mode dsi panel";
