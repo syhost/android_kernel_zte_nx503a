@@ -127,7 +127,6 @@
 		qcom,cci-master = <0>;
 		status = "ok";
 	};
-	};
 	/* add liteon 06913ma*/
 	qcom,camera@200 {
 		compatible = "qcom,imx135_069";

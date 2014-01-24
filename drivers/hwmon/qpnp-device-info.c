@@ -111,18 +111,19 @@ ztemt_get_project_type( struct project_id_map_st *pts,
 }
 
 int 
-ztemt_get_project_id( void )
+ztemt_get_project_id(struct device *dev)
 {
 	int rc;
 	int64_t project_id_uv = 0;
 	static int get_project = 0;
 	struct qpnp_vadc_result  adc_result;
 
-
+	struct qpnp_vadc_chip *vadc = qpnp_get_vadc(dev, "adc_tm");
+	
 	if(get_project && (ztemt_project_id != Z5S_PROJECT_INVALID))
 		return ztemt_project_id;
 
-	rc = qpnp_vadc_read(ADC_PROJECT_ID, &adc_result);
+	rc = qpnp_vadc_read(vadc, ADC_PROJECT_ID, &adc_result);
 	if (rc) {
 		DBG_DEVICE_INFO("error reading channel = %d, rc = %d\n",ADC_PROJECT_ID, rc);
 		return rc;
@@ -167,17 +168,18 @@ ztemt_get_hardware_type( struct hardware_id_map_st pts[][HRADWARE_ID_MAX] , int 
 }
 
 int 
-ztemt_get_hw_id(int project_id)
+ztemt_get_hw_id(struct device *dev, int project_id)
 {
 	int rc;
 	int64_t hw_id_uv = 0;
 	static int get_hw = 0;
 	struct qpnp_vadc_result  adc_result;
+	struct qpnp_vadc_chip *vadc = qpnp_get_vadc(dev, "adc_tm");
 
 	if(get_hw &&( ztemt_hw_id !=Z5S_HW_INVALID))
 		return ztemt_hw_id;
 
-	rc = qpnp_vadc_read(ADC_HW_ID, &adc_result);
+	rc = qpnp_vadc_read(vadc, ADC_HW_ID, &adc_result);
 	if (rc) {
 		DBG_DEVICE_INFO("error reading channel  = %d, rc = %d\n",ADC_HW_ID, rc);
 		return rc;
@@ -208,17 +210,17 @@ DBG_DEVICE_INFO("hw_id_uv.physical = %lld \n", adc_result.physical);
 * Public Interface
 */
 
-int ztemt_get_device_index(char* result)
+int ztemt_get_device_index(struct device *dev, char* result)
 {
 	int hw_id, project_id;
 	/* 默认为降成本版本*/
 	device_index_type device_index = 
 							DEVICE_01AMB_B_WTR1605_L_EMMC_16_32;
 	
-	project_id = ztemt_get_project_id();
+	project_id = ztemt_get_project_id(dev);
 	if(project_id != Z5S_PROJECT_INVALID)
 	{
-		hw_id = ztemt_get_hw_id( project_id );
+		hw_id = ztemt_get_hw_id(dev, project_id );
 		if(hw_id != Z5S_HW_INVALID){
 			device_index = hardware_id_map[project_id][hw_id].device_index;
 			}	
@@ -232,16 +234,16 @@ int ztemt_get_device_index(char* result)
 }
 
 void 
-ztemt_get_hw_pcb_version(char* result)
+ztemt_get_hw_pcb_version(struct device *dev, char* result)
 {
 	int hw_id, project_id;
 	if(!result)
 		return;
 
-	project_id = ztemt_get_project_id();
+	project_id = ztemt_get_project_id(dev);
 	if(project_id != Z5S_PROJECT_INVALID)
 	{
-		hw_id = ztemt_get_hw_id( project_id );
+		hw_id = ztemt_get_hw_id(dev, project_id );
 		if(hw_id != Z5S_HW_INVALID){
 			sprintf(result, "%s",hardware_id_map[project_id][hw_id].hw_ver);
 	}else
@@ -253,13 +255,13 @@ ztemt_get_hw_pcb_version(char* result)
 EXPORT_SYMBOL(ztemt_get_hw_pcb_version);
 
 void 
-ztemt_get_project_version(char* result)
+ztemt_get_project_version(struct device *dev, char* result)
 {
 	int project_id;
 	if(!result)
 		return;
 
-	project_id = ztemt_get_project_id();
+	project_id = ztemt_get_project_id(dev);
 	if(project_id != Z5S_PROJECT_INVALID){
 		sprintf(result, "%s",project_id_map[project_id].project_ver);
 	}else
@@ -271,7 +273,7 @@ static ssize_t  projectid_info_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	char *tmp = buf;
-	ztemt_get_project_version(buf);
+	ztemt_get_project_version(dev, buf);
 	while ((*tmp++ ) != '\0');
 	return (tmp - buf);
 }
@@ -286,7 +288,7 @@ static ssize_t  hardwareid_pcb_info_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	char *tmp = buf;
-	ztemt_get_hw_pcb_version(buf);
+	ztemt_get_hw_pcb_version(dev, buf);
 	while ((*tmp++ ) != '\0');
 	return (tmp - buf);
 }
@@ -300,7 +302,7 @@ static DEVICE_ATTR(pcb_info, 0444, hardwareid_pcb_info_show, hardwareid_pcb_stor
 static ssize_t  device_index_show(struct device *dev, 
 		struct device_attribute *attr, char *buf)
 {
-		ztemt_get_device_index(buf);
+		ztemt_get_device_index(dev, buf);
 		return 1;
 }
 static ssize_t device_index_store(struct device *dev, 

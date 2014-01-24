@@ -28,9 +28,9 @@
 		reg = <0x1>;
 	};
 };
-/include/ "msm-pm8941.dtsi"
-/include/ "msm8974-regulator.dtsi"
-/include/ "msm8974-clock.dtsi"
+/include/ "ztemt_msm-pm8941.dtsi"
+/include/ "ztemt_msm8974-regulator.dtsi"
+/include/ "../msm8974-clock.dtsi"
 
 /include/ "../msm8974-v2-iommu.dtsi"
 /include/ "../msm8974-v2-iommu-domains.dtsi"

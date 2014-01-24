@@ -38,12 +38,22 @@
 
 extern struct i2c_driver tmd2772_driver;
 extern struct i2c_driver tmg399x_driver;
-extern int ztemt_get_device_index(char* result);
+extern int ztemt_get_device_index(struct device *dev, char* result);
 
+static struct device my_dev = {
+	 .init_name = "my_dev",
+};
 
 static int __init als_prox_init(void) 
 {
-    int project_id = ztemt_get_device_index(NULL);
+    int project_id;
+    int ret;
+    
+ 	ret = device_register(&my_dev);
+	if (ret)
+		printk(KERN_NOTICE "Fail to register device:my_dev!\n");
+		
+    project_id = ztemt_get_device_index(&my_dev, NULL);
 
     SENSOR_LOG_INFO("project_id is %d\n",project_id);
 

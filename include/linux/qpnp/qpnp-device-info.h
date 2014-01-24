@@ -74,11 +74,11 @@ struct project_id_map_st {
 };
 
 void 
-ztemt_get_hw_pcb_version(char* result);
+ztemt_get_hw_pcb_version(struct device *dev, char* result);
 void 
-ztemt_get_project_version(char* result);
+ztemt_get_project_version(struct device *dev, char* result);
 int  
-ztemt_get_device_index(char* result);
+ztemt_get_device_index(struct device *dev, char* result);
 int   
 device_info_init(void);
 #endif

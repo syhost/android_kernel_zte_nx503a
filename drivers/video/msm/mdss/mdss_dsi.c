@@ -1233,7 +1233,7 @@ int dsi_panel_device_register(struct device_node *pan_node,
 	
 #ifdef CONFIG_ZTEMT_LCD_AVDD_NEGATIVE_CONTRL
 /*avdd neg ctl board2 add ,mayu 6.25*/
-	ctrl_pdata->avdd_neg_en_gpio = of_get_named_gpio(pdev->dev.of_node,
+	ctrl_pdata->avdd_neg_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 						     "qcom,avddn-enable-gpio", 0);
 	if (!gpio_is_valid(ctrl_pdata->avdd_neg_en_gpio)) {
 		pr_err("%s:%d, avdd_neg_en_gpio gpio not specified\n",

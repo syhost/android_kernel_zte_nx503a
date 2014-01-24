@@ -2085,7 +2085,7 @@ get_prop_charger_voltage_now(struct qpnp_chg_chip *chip)
 		goto default_voltage;
 	}
 
-		rc = qpnp_vadc_read(USBIN, &results);
+		rc = qpnp_vadc_read(chip->vadc_dev, USBIN, &results);
 		if (rc) {
 			pr_err("Unable to read charger rc=%d\n", rc);
 			return 0;
@@ -2358,7 +2358,7 @@ get_prop_pmic_temp(struct qpnp_chg_chip *chip)
 	int rc = 0;
 	struct qpnp_vadc_result results;
 
-	rc = qpnp_vadc_read(DIE_TEMP, &results);
+	rc = qpnp_vadc_read(chip->vadc_dev, DIE_TEMP, &results);
 	if (rc) {
 		pr_debug("Unable to read batt temperature rc=%d\n", rc);
 		return 0;
