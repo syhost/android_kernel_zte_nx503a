@@ -13,12 +13,6 @@
 /include/ "ztemt_msm8974-camera-sensor-mtp.dtsi"
 /include/ "ztemt_msm8974-leds.dtsi"
 
-/ {
-	aliases {
-		serial0 = &blsp1_uart1;
-	};
-};
-
 &soc {
 	serial@f991d000 {
 		compatible = "qcom,msm-lsuart-v14";
