@@ -2353,31 +2353,37 @@
 				<84 512 0 0>,
 				<84 512 500 800>;
 	};
-	
-	uart8: uart@f995e000 { 
+
+	uart8: uart@f995e000 {
 		compatible = "qcom,msm-hsuart-v14";
 		status = "ok";
 		reg = <0xf995e000 0x1000>,
-			<0xf9944000 0x19000>;   
+			<0xf9944000 0x19000>;
 		reg-names = "core_mem", "bam_mem";
-		interrupts = <0 114 0>, <0 239 0>;
-		interrupt-names = "core_irq", "bam_irq";
+		interrupt-names = "core_irq", "bam_irq", "wakeup_irq";
+		#address-cells = <0>;
+		interrupt-parent = <&uart8>;
+		interrupts = <0 1 2>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0xffffffff>;
+		interrupt-map = <0 &intc 0 114 0
+				1 &intc 0 239 0
+				2 &msmgpio 42 0>;
 
-		qcom,tx-gpio = <&msmgpio 45 0x00>;
-		qcom,rx-gpio = <&msmgpio 46 0x00>;
-		qcom,cts-gpio = <&msmgpio 47 0x00>;
-		qcom,rfr-gpio = <&msmgpio 48 0x00>;
+		qcom,tx-gpio = <&msmgpio 45 0>;
+		qcom,rx-gpio = <&msmgpio 46 0>;
+		qcom,cts-gpio = <&msmgpio 47 0>;
+		qcom,rfr-gpio = <&msmgpio 48 0>;
 
 		qcom,bam-tx-ep-pipe-index = <2>;
 		qcom,bam-rx-ep-pipe-index = <3>;
-		
 		qcom,msm-bus,name = "uart8";
 		qcom,msm-bus,num-cases = <2>;
-		qcom,msm-bus,active-only = <0>;
+        qcom,msm-bus,active-only = <0>;
 		qcom,msm-bus,num-paths = <1>;
 		qcom,msm-bus,vectors-KBps =
 				<84 512 0 0>,
-				<84 512 500 800>; 
+				<84 512 500 800>;
 	};
 /*
 	uart9: uart@f995f000 { 
