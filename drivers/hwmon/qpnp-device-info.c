@@ -118,7 +118,7 @@ ztemt_get_project_id(struct device *dev)
 	static int get_project = 0;
 	struct qpnp_vadc_result  adc_result;
 
-	struct qpnp_vadc_chip *vadc = qpnp_get_vadc(dev, "adc_tm");
+	struct qpnp_vadc_chip *vadc = qpnp_get_vadc(dev, "temp_alarm");
 	
 	if(get_project && (ztemt_project_id != Z5S_PROJECT_INVALID))
 		return ztemt_project_id;
@@ -174,7 +174,7 @@ ztemt_get_hw_id(struct device *dev, int project_id)
 	int64_t hw_id_uv = 0;
 	static int get_hw = 0;
 	struct qpnp_vadc_result  adc_result;
-	struct qpnp_vadc_chip *vadc = qpnp_get_vadc(dev, "adc_tm");
+	struct qpnp_vadc_chip *vadc = qpnp_get_vadc(dev, "temp_alarm");
 
 	if(get_hw &&( ztemt_hw_id !=Z5S_HW_INVALID))
 		return ztemt_hw_id;
