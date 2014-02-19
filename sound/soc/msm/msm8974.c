@@ -128,6 +128,8 @@ static struct wcd9xxx_mbhc_config mbhc_cfg = {
 	.insert_detect = true,
 	.swap_gnd_mic = NULL,
 	.cs_enable_flags = 0,
+	.do_recalibration = true,
+	.use_vddio_meas = true,
 };
 #else
 static struct wcd9xxx_mbhc_config mbhc_cfg = {
