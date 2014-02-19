@@ -93,3 +93,7 @@
 	qcom,retain-periph;
 	qcom,retain-mem;
 };
+
+&gdsc_venus {
+	qcom,skip-logic-collapse;
+};
