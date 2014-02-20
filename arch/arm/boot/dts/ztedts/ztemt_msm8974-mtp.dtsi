@@ -897,6 +897,5 @@
 };
 
 &dsi_sharp_1080_vid {
-    status = "ok";
-    qcom,cont-splash-enabled = <1>;
+    qcom,cont-splash-enabled;
 };
