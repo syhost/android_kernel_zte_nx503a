@@ -709,7 +709,7 @@
 		reg-names = "slimbus_physical", "slimbus_bam_physical";
 		interrupts = <0 163 0 0 164 0>;
 		interrupt-names = "slimbus_irq", "slimbus_bam_irq";
-		qcom,apps-ch-pipes = <0x60000000>;
+		qcom,apps-ch-pipes = <0x3F000000>;
 		qcom,ea-pc = <0x30>;
 
 		taiko_codec {
@@ -939,8 +939,8 @@
 		reg-names = "qup_phys_addr";
 		interrupts = <0 100 0>;
 		interrupt-names = "qup_err_intr";
-		qcom,i2c-bus-freq = <100000>;
-		qcom,i2c-src-freq = <50000000>;
+		qcom,i2c-bus-freq = <384000>;
+		qcom,i2c-src-freq = <19200000>;
 		qcom,master-id = <86>;
 		qcom,scl-gpio = <&msmgpio 30 0>;
 		qcom,sda-gpio = <&msmgpio 29 0>;

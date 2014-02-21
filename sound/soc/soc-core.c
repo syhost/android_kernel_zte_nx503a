@@ -849,7 +849,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	struct snd_soc_dai *codec_dai, *cpu_dai;
 	const char *platform_name;
 
-	dev_dbg(card->dev, "binding %s at idx %d\n", dai_link->name, num);
+	dev_info(card->dev, "binding %s at idx %d\n", dai_link->name, num);
 
 	/* Find CPU DAI from registered DAIs*/
 	list_for_each_entry(cpu_dai, &dai_list, list) {
@@ -865,7 +865,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	}
 
 	if (!rtd->cpu_dai) {
-		dev_dbg(card->dev, "CPU DAI %s not registered\n",
+		dev_info(card->dev, "CPU DAI %s not registered\n",
 			dai_link->cpu_dai_name);
 		return -EPROBE_DEFER;
 
@@ -896,7 +896,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 			}
 		}
 		if (!rtd->codec_dai) {
-			dev_dbg(card->dev, "CODEC DAI %s not registered\n",
+			dev_info(card->dev, "CODEC DAI %s not registered\n",
 				dai_link->codec_dai_name);
 			return -EPROBE_DEFER;
 		}
@@ -904,7 +904,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	}
 
 	if (!rtd->codec) {
-		dev_dbg(card->dev, "CODEC %s not registered\n",
+		dev_info(card->dev, "CODEC %s not registered\n",
 			dai_link->codec_name);
 		return -EPROBE_DEFER;
 	}
@@ -928,7 +928,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 		rtd->platform = platform;
 	}
 	if (!rtd->platform) {
-		dev_dbg(card->dev, "platform %s not registered\n",
+		dev_info(card->dev, "platform %s not registered\n",
 			dai_link->platform_name);
 
 		return -EPROBE_DEFER;
@@ -3189,7 +3189,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		 * not both or neither.
 		 */
 		if (!!link->codec_name == !!link->codec_of_node) {
-			dev_err(card->dev,
+			dev_info(card->dev,
 				"Neither/both codec name/of_node are set for %s\n",
 				link->name);
 			return -EINVAL;
@@ -3200,7 +3200,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		 * can be left unspecified, and a dummy platform will be used.
 		 */
 		if (link->platform_name && link->platform_of_node) {
-			dev_err(card->dev,
+			dev_info(card->dev,
 				"Both platform name/of_node are set for %s\n", link->name);
 			return -EINVAL;
 		}
@@ -3210,7 +3210,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		 * not both or neither.
 		 */
 		if (!!link->cpu_dai_name == !!link->cpu_dai_of_node) {
-			dev_err(card->dev,
+			dev_info(card->dev,
 				"Neither/both cpu_dai name/of_node are set for %s\n",
 				link->name);
 			return -EINVAL;
