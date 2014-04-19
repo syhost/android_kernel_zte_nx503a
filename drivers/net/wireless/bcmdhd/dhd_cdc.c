@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_cdc.c 393635 2013-03-28 08:47:51Z $
+ * $Id: dhd_cdc.c 393623 2013-03-28 06:27:09Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -48,6 +48,8 @@ typedef struct dhd_prot {
 	unsigned char buf[WLC_IOCTL_MAXLEN + ROUND_UP_MARGIN];
 } dhd_prot_t;
 
+extern int module_remove;
+
 
 static int
 dhdcdc_msg(dhd_pub_t *dhd)
@@ -83,6 +85,10 @@ dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
+	if ((dhd->busstate == DHD_BUS_DOWN) || dhd->hang_was_sent || module_remove) {
+		DHD_ERROR(("%s : bus is down. we have nothing to do\n", __FUNCTION__));
+		return -EIO;
+	}
 
 	do {
 		ret = dhd_bus_rxctl(dhd->bus, (uchar*)&prot->msg, cdc_len);
@@ -259,7 +265,8 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t * ioc, void * buf, int len)
 	int ret = -1;
 	uint8 action;
 
-	if ((dhd->busstate == DHD_BUS_DOWN) || dhd->hang_was_sent) {
+//	if ((dhd->busstate == DHD_BUS_DOWN) || dhd->hang_was_sent) {
+	if ((dhd->busstate == DHD_BUS_DOWN) || dhd->hang_was_sent || module_remove) {
 		DHD_ERROR(("%s : bus is down. we have nothing to do\n", __FUNCTION__));
 		goto done;
 	}
@@ -391,10 +398,6 @@ dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf, uchar *reorder_buf_in
 
 	h = (struct bdc_header *)PKTDATA(dhd->osh, pktbuf);
 
-#if defined(NDISVER) && (NDISVER >= 0x0630)
-	h->dataOffset = 0;
-#endif /* NDISVER >= 0x0630 */
-
 	if (!ifidx) {
 		/* for tx packet, skip the analysis */
 		data_offset = h->dataOffset;
@@ -428,13 +431,6 @@ dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf, uchar *reorder_buf_in
 	PKTPULL(dhd->osh, pktbuf, BDC_HEADER_LEN);
 #endif /* BDC */
 
-#if defined(NDISVER) && (NDISVER < 0x0630)
-	if (PKTLEN(dhd->osh, pktbuf) < (uint32) (data_offset << 2)) {
-		DHD_ERROR(("%s: rx data too short (%d < %d)\n", __FUNCTION__,
-		           PKTLEN(dhd->osh, pktbuf), (data_offset * 4)));
-		return BCME_ERROR;
-	}
-#endif /* (NDISVER < 0x0630) */
 #ifdef PROP_TXSTATUS
 	dhd_os_wlfc_block(dhd);
 	if (dhd->wlfc_state &&

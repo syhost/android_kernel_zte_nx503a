@@ -29,16 +29,6 @@
 
 #include "cyttsp4_mt_common.h"
 
-#if defined(CONFIG_FB)
-static int fb_notifier_callback(struct notifier_block *self,
-				unsigned long event, void *data);
-#endif
-
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
-static int cyttsp4_mt_suspend(struct device *dev);
-static int cyttsp4_mt_resume(struct device *dev);
-#endif
-
 static void cyttsp4_lift_all(struct cyttsp4_mt_data *md)
 {
 	if (!md->si)
@@ -478,7 +468,7 @@ static void cyttsp4_mt_close(struct input_dev *input)
 */
     
 #if defined (CONFIG_FB)
-static int fb_notifier_callback(struct notifier_block *self,
+static int cyttsp4_mt_fb_notifier_callback(struct notifier_block *self,
                 unsigned long event, void *data)
 {
     struct fb_event *evdata = data;
@@ -487,32 +477,35 @@ static int fb_notifier_callback(struct notifier_block *self,
         container_of(self, struct cyttsp4_mt_data, fb_notif);
     struct device *dev = &md->ttsp->dev;
 
-    dev_info(dev, "%s\n", __func__);
-
     if (evdata && evdata->data && event == FB_EVENT_BLANK &&
         md && md->ttsp) {
         blank = evdata->data;
-        if (*blank == FB_BLANK_UNBLANK && md->is_suspended == true)
-            cyttsp4_mt_resume(&(md->ttsp->dev));
-        else if (*blank == FB_BLANK_POWERDOWN)
-            cyttsp4_mt_suspend(&(md->ttsp->dev));
+        if (*blank == FB_BLANK_UNBLANK) {
+            pm_runtime_get(dev);
+            md->is_suspended = false;
+        }
+        else if (*blank == FB_BLANK_POWERDOWN) {
+        	if (md->si)
+        		cyttsp4_lift_all(md);
+        	pm_runtime_put(dev);
+        	md->is_suspended = true;
+        }
     }
 
     return 0;
 }
-static void cyttsp4_setup_early_suspend(struct cyttsp4_mt_data *md)
+
+static int cyttsp4_mt_fb_register(struct cyttsp4_mt_data *md)
 {
     int retval = 0;
-    struct device *dev = &md->ttsp->dev;
 
-        dev_dbg(dev, "%s\n", __func__);
-    md->fb_notif.notifier_call = fb_notifier_callback;
+    md->fb_notif.notifier_call = cyttsp4_mt_fb_notifier_callback;
 
     retval = fb_register_client(&md->fb_notif);
     if (retval)
         dev_err(&md->ttsp->dev,
             "Unable to register fb_notifier: %d\n", retval);
-    return;
+    return retval;
 }
 
 #elif defined (CONFIG_HAS_EARLYSUSPEND)
@@ -552,38 +545,36 @@ void cyttsp4_setup_early_suspend(struct cyttsp4_mt_data *md)
 
 	register_early_suspend(&md->es);
 }
-#else
-static void cyttsp4_setup_early_suspend(struct cyttsp4_mt_data *md)
-{
-	return;
-}
 #endif
 
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
+#if defined(CONFIG_PM_SLEEP)
 static int cyttsp4_mt_suspend(struct device *dev)
 {
-#ifndef CONFIG_PM_RUNTIME
 	struct cyttsp4_mt_data *md = dev_get_drvdata(dev);
-#endif
 
-	dev_dbg(dev, "%s\n", __func__);
-
-#ifndef CONFIG_PM_RUNTIME
 	mutex_lock(&md->report_lock);
 	md->is_suspended = true;
 	cyttsp4_lift_all(md);
 	mutex_unlock(&md->report_lock);
-#endif
 
-	pm_runtime_put(dev);
 	return 0;
 }
 
-static int cyttsp4_mt_rt_suspend(struct device *dev)
+static int cyttsp4_mt_resume(struct device *dev)
 {
 	struct cyttsp4_mt_data *md = dev_get_drvdata(dev);
 
-	dev_dbg(dev, "%s\n", __func__);
+	mutex_lock(&md->report_lock);
+	md->is_suspended = false;
+	mutex_unlock(&md->report_lock);
+
+	return 0;
+}
+#endif
+#if defined(CONFIG_PM_RUNTIME)
+static int cyttsp4_mt_rt_suspend(struct device *dev)
+{
+	struct cyttsp4_mt_data *md = dev_get_drvdata(dev);
 
 	mutex_lock(&md->report_lock);
 	md->is_suspended = true;
@@ -597,49 +588,18 @@ static int cyttsp4_mt_rt_resume(struct device *dev)
 {
 	struct cyttsp4_mt_data *md = dev_get_drvdata(dev);
 
-	dev_dbg(dev, "%s\n", __func__);
-
 	mutex_lock(&md->report_lock);
 	md->is_suspended = false;
 	mutex_unlock(&md->report_lock);
 
 	return 0;
 }
-
-static int cyttsp4_mt_resume(struct device *dev)
-{
-#ifndef CONFIG_PM_RUNTIME
-	struct cyttsp4_mt_data *md = dev_get_drvdata(dev);
-#endif
-	dev_dbg(dev, "%s\n", __func__);
-
-#ifndef CONFIG_PM_RUNTIME
-	mutex_lock(&md->report_lock);
-	md->is_suspended = false;
-	mutex_unlock(&md->report_lock);
 #endif
 
-	pm_runtime_get(dev);
-	return 0;
-}
-#endif
-
-#if 0
 const struct dev_pm_ops cyttsp4_mt_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(cyttsp4_mt_suspend, cyttsp4_mt_resume)
-	SET_RUNTIME_PM_OPS(cyttsp4_mt_suspend, cyttsp4_mt_resume, NULL)
-};
-#endif
-
-#if (!defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND))
-static const struct dev_pm_ops cyttsp4_mt_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(cyttsp4_mt_suspend, cyttsp4_mt_resume)
-};
-#else
-static const struct dev_pm_ops cyttsp4_mt_pm_ops = {
 	SET_RUNTIME_PM_OPS(cyttsp4_mt_rt_suspend, cyttsp4_mt_rt_resume, NULL)
 };
-#endif
 
 static int cyttsp4_setup_input_device(struct cyttsp4_device *ttsp)
 {
@@ -748,14 +708,20 @@ int cyttsp4_mt_release(struct cyttsp4_device *ttsp)
 
 	dev_dbg(dev, "%s\n", __func__);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+	if (md->is_suspended)
+		pm_runtime_get_noresume(dev);
+
 	/*
 	 * This check is to prevent pm_runtime usage_count drop below zero
 	 * because of removing the module while in suspended state
 	 */
-	if (md->is_suspended)
-		pm_runtime_get_noresume(dev);
 
+    /*** ZTEMT Modify by luochangyang, 2013/11/30 ***/
+#if defined(CONFIG_FB)
+    if (fb_unregister_client(&md->fb_notif))
+        dev_err(dev, "Error occurred while unregistering fb_notifier.\n");
+#elif defined(CONFIG_HAS_EARLYSUSPEND)
+    /***ZTEMT END***/
 	unregister_early_suspend(&md->es);
 #endif
 
@@ -843,9 +809,11 @@ static int cyttsp4_mt_probe(struct cyttsp4_device *ttsp)
 			cyttsp4_setup_input_attention, 0);
 	}
 
-//#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_FB)
+    cyttsp4_mt_fb_register(md);
+#elif defined (CONFIG_HAS_EARLYSUSPEND)
 	cyttsp4_setup_early_suspend(md);
-//#endif
+#endif
 
 	dev_dbg(dev, "%s: OK\n", __func__);
 	return 0;

@@ -1992,15 +1992,15 @@
 #define         gxgain_c                0x189D
 #define         gxistp_c                0x189E
 #define         Sttx34aH                0x189F
-#define         gxh1a_2                 0x18A0   // ・gxslwganmin
-#define         gxh1b_2                 0x18A1   // ・gxslwgantyp
-#define         gxh1c_2                 0x18A2   // ・gxslwganmax
-#define         gxh2a_2                 0x18A3   // ・gxslwganstp1
-#define         gxh2b_2                 0x18A4   // ・glslwganstp2
+#define         gxh1a_2                 0x18A0   // ﾂ・gxslwganmin
+#define         gxh1b_2                 0x18A1   // ﾂ・gxslwgantyp
+#define         gxh1c_2                 0x18A2   // ﾂ・gxslwganmax
+#define         gxh2a_2                 0x18A3   // ﾂ・gxslwganstp1
+#define         gxh2b_2                 0x18A4   // ﾂ・glslwganstp2
 #define         gxh2c_2                 0x18A5
-#define         gxl1a_2                 0x18A6   // ・gxslwfcmin
-#define         gxl1b_2                 0x18A7   // ・gxslwfcmax
-#define         gxl1c_2                 0x18A8   // ・gxslwfcstp
+#define         gxl1a_2                 0x18A6   // ﾂ・gxslwfcmin
+#define         gxl1b_2                 0x18A7   // ﾂ・gxslwfcmax
+#define         gxl1c_2                 0x18A8   // ﾂ・gxslwfcstp
 #define         gxgma_2                 0x18A9
 #define         gxzoom_2                0x18AA
 #define         gxlens_2                0x18AB
@@ -2250,15 +2250,15 @@
 #define         gygain_c                0x199D
 #define         gyistp_c                0x199E
 #define         Stty34aH                0x199F
-#define         gyh1a_2                 0x19A0  // ・gyslwganmin
-#define         gyh1b_2                 0x19A1  // ・gyslwgantyp
-#define         gyh1c_2                 0x19A2  // ・gyslwganmax
-#define         gyh2a_2                 0x19A3  // ・gyslwganstp1
-#define         gyh2b_2                 0x19A4  // ・glslwganstp2
+#define         gyh1a_2                 0x19A0  // ﾂ・gyslwganmin
+#define         gyh1b_2                 0x19A1  // ﾂ・gyslwgantyp
+#define         gyh1c_2                 0x19A2  // ﾂ・gyslwganmax
+#define         gyh2a_2                 0x19A3  // ﾂ・gyslwganstp1
+#define         gyh2b_2                 0x19A4  // ﾂ・glslwganstp2
 #define         gyh2c_2                 0x19A5
-#define         gyl1a_2                 0x19A6  // ・gyslwfcmin
-#define         gyl1b_2                 0x19A7  // ・gyslwfcmax
-#define         gyl1c_2                 0x19A8  // ・gyslwfcstp
+#define         gyl1a_2                 0x19A6  // ﾂ・gyslwfcmin
+#define         gyl1b_2                 0x19A7  // ﾂ・gyslwfcmax
+#define         gyl1c_2                 0x19A8  // ﾂ・gyslwfcstp
 #define         gygma_2                 0x19A9
 #define         gyzoom_2                0x19AA
 #define         gylens_2                0x19AB

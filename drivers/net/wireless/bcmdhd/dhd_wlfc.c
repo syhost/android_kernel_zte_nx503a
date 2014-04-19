@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_wlfc.c 394190 2013-04-01 12:01:33Z $
+ * $Id: dhd_wlfc.c 395161 2013-04-05 13:19:38Z $
  *
  */
 
@@ -41,6 +41,13 @@ typedef struct dhd_wlfc_commit_info {
 
 
 #ifdef PROP_TXSTATUS
+
+#ifdef QMONITOR
+#define DHD_WLFC_QMON_COMPLETE(entry) dhd_qmon_txcomplete(&entry->qmon)
+#else
+#define DHD_WLFC_QMON_COMPLETE(entry)
+#endif /* QMONITOR */
+
 void
 dhd_wlfc_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 {
@@ -550,9 +557,9 @@ _dhd_wlfc_find_table_entry(athost_wl_status_info_t* ctx, void* p)
 	wlfc_mac_descriptor_t* entry = NULL;
 	int iftype = ctx->destination_entries.interfaces[ifid].iftype;
 
-	/* Multicast destination, STA and P2P clients get the interface entry.
-	 * STA/GC gets the Mac Entry for TDLS destinations, TDLS destinations
-	 * have their own entry.
+	/* Multicast destination and P2P clients get the interface entry.
+	 * STA gets the interface entry if there is no exact match. For
+	 * example, TDLS destinations have their own entry.
 	 */
 	if ((iftype == WLC_E_IF_ROLE_STA || ETHER_ISMULTI(dstn) ||
 		iftype == WLC_E_IF_ROLE_P2P_CLIENT) &&
@@ -1127,6 +1134,10 @@ _dhd_wlfc_mac_entry_update(athost_wl_status_info_t* ctx, wlfc_mac_descriptor_t* 
 {
 	int rc = BCME_OK;
 
+#ifdef QMONITOR
+	dhd_qmon_reset(&entry->qmon);
+#endif
+
 	if (action == eWLFC_MAC_ENTRY_ACTION_ADD) {
 		entry->occupied = 1;
 		entry->state = WLFC_STATE_OPEN;
@@ -1169,7 +1180,7 @@ _dhd_wlfc_mac_entry_update(athost_wl_status_info_t* ctx, wlfc_mac_descriptor_t* 
 		/* enable after packets are queued-deqeued properly.
 		pktq_flush(dhd->osh, &entry->psq, FALSE, NULL, 0);
 		*/
-		}
+	}
 	return rc;
 }
 
@@ -1212,15 +1223,6 @@ dhd_wlfc_interface_entry_update(void* state,
 	entry = &ctx->destination_entries.interfaces[ifid];
 	ret = _dhd_wlfc_mac_entry_update(ctx, entry, action, ifid, iftype, ea);
 	return ret;
-}
-
-int
-dhd_wlfc_BCMCCredit_support_update(void* state)
-{
-	athost_wl_status_info_t* ctx = (athost_wl_status_info_t*)state;
-
-	ctx->bcmc_credit_supported = TRUE;
-	return BCME_OK;
 }
 
 int
@@ -1293,6 +1295,21 @@ _dhd_wlfc_handle_packet_commit(athost_wl_status_info_t* ctx, int ac,
 }
 
 
+#ifdef QMONITOR
+void
+dhd_wlfc_qmon_tx(void* state, void *pktbuf)
+{
+	athost_wl_status_info_t* ctx = (athost_wl_status_info_t*)state;
+
+	if (!ctx) {
+		wlfc_mac_descriptor_t* entry =  _dhd_wlfc_find_table_entry(ctx, pktbuf);
+		if (entry)
+			dhd_qmon_tx(&entry->qmon);
+	}
+}
+#endif /* QMONITOR */
+
+
 int
 dhd_wlfc_commit_packets(void* state, f_commitpkt_t fcommit, void* commit_ctx, void *pktbuf)
 {
@@ -1304,7 +1321,6 @@ dhd_wlfc_commit_packets(void* state, f_commitpkt_t fcommit, void* commit_ctx, vo
 	int credit_count = 0;
 	int bus_retry_count = 0;
 	uint8 ac_available = 0;  /* Bitmask for 4 ACs + BC/MC */
-	void *bcmc_pend = NULL;
 
 	if ((state == NULL) ||
 		(fcommit == NULL)) {
@@ -1331,14 +1347,28 @@ dhd_wlfc_commit_packets(void* state, f_commitpkt_t fcommit, void* commit_ctx, vo
 		ac = DHD_PKTTAG_FIFO(PKTTAG(pktbuf));
 		if (ETHER_ISMULTI(DHD_PKTTAG_DSTN(PKTTAG(pktbuf)))) {
 				ASSERT(ac == AC_COUNT);
-			if (!pktq_full(&ctx->bcmcq)) {
-				pktenq(&ctx->bcmcq, pktbuf);
-			} else {
-				if (ctx->FIFO_credit[ac] == 0) {
-					PKTFREE(ctx->osh, pktbuf, TRUE);
-					return BCME_ERROR;
+			commit_info.needs_hdr = 1;
+			commit_info.mac_entry = NULL;
+			commit_info.pkt_type = eWLFC_PKTTYPE_NEW;
+			commit_info.p = pktbuf;
+			if (ctx->FIFO_credit[ac]) {
+				rc = _dhd_wlfc_handle_packet_commit(ctx, ac, &commit_info,
+					fcommit, commit_ctx);
+
+			/* Bus commits may fail (e.g. flow control); abort after retries */
+				if (rc == BCME_OK) {
+					if (commit_info.ac_fifo_credit_spent) {
+						(void) _dhd_wlfc_borrow_credit(ctx,
+							ac_available, ac);
+						credit_count--;
+					}
 				} else {
-					bcmc_pend = pktbuf;
+					bus_retry_count++;
+					if (bus_retry_count >= BUS_RETRIES) {
+						DHD_ERROR((" %s: bus error %d\n",
+							__FUNCTION__, rc));
+						return rc;
+					}
 				}
 			}
 		}
@@ -1346,30 +1376,6 @@ dhd_wlfc_commit_packets(void* state, f_commitpkt_t fcommit, void* commit_ctx, vo
 			/* en-queue the packets to respective queue. */
 			rc = _dhd_wlfc_enque_delayq(ctx, pktbuf, ac);
 		}
-	}
-
-	while (!pktq_empty(&ctx->bcmcq) && ctx->FIFO_credit[AC_COUNT]) {
-		commit_info.needs_hdr = 1;
-		commit_info.mac_entry = NULL;
-		commit_info.pkt_type = eWLFC_PKTTYPE_NEW;
-		if (ctx->bcmc_credit_supported) {
-			commit_info.ac_fifo_credit_spent = 1;
-		}
-		commit_info.p = pktdeq(&ctx->bcmcq);
-		if (bcmc_pend != NULL) {
-			pktenq(&ctx->bcmcq, bcmc_pend);
-			bcmc_pend = NULL;
-		}
-		rc = _dhd_wlfc_handle_packet_commit(ctx, AC_COUNT, &commit_info,
-			fcommit, commit_ctx);
-
-		/* Bus commits may fail (e.g. flow control); abort after retries */
-		if (rc != BCME_OK) {
-			return rc;
-		}
-
-		if (ctx->bcmc_credit_supported)
-			ctx->FIFO_credit[AC_COUNT]--;
 	}
 
 	for (ac = AC_COUNT; ac >= 0; ac--) {
@@ -1711,6 +1717,7 @@ dhd_wlfc_compressed_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info, uint8 len)
 				/* indicate failure and free the packet */
 				dhd_txcomplete(dhd, pktbuf, FALSE);
 				entry->transit_count--;
+				DHD_WLFC_QMON_COMPLETE(entry);
 				/* packet is transmitted Successfully by dongle
 				 * after first suppress.
 				 */
@@ -1729,6 +1736,7 @@ dhd_wlfc_compressed_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info, uint8 len)
 		else {
 			dhd_txcomplete(dhd, pktbuf, TRUE);
 			entry->transit_count--;
+			DHD_WLFC_QMON_COMPLETE(entry);
 
 			/* This packet is transmitted Successfully by dongle
 			 * even after first suppress.
@@ -1872,7 +1880,10 @@ dhd_wlfc_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info)
 			/* indicate failure and free the packet */
 			dhd_txcomplete(dhd, pktbuf, FALSE);
 			entry->transit_count--;
-			/* packet is transmitted Successfully by dongle after first suppress. */
+			DHD_WLFC_QMON_COMPLETE(entry);
+			/* This packet is transmitted Successfully by
+			 *  dongle even after first suppress.
+			 */
 			if (entry->suppressed) {
 				entry->suppr_transit_count--;
 			}
@@ -1888,6 +1899,7 @@ dhd_wlfc_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info)
 	else {
 		dhd_txcomplete(dhd, pktbuf, TRUE);
 		entry->transit_count--;
+		DHD_WLFC_QMON_COMPLETE(entry);
 
 		/* This packet is transmitted Successfully by dongle even after first suppress. */
 		if (entry->suppressed) {
@@ -2319,8 +2331,6 @@ dhd_wlfc_enable(dhd_pub_t *dhd)
 	if (dhd->plat_enable)
 		dhd->plat_enable((void *)dhd);
 
-	pktq_init(&wlfc->bcmcq, 1, WLFC_PSQ_LEN);
-
 	return BCME_OK;
 }
 
@@ -2406,11 +2416,6 @@ dhd_wlfc_deinit(dhd_pub_t *dhd)
 	if (dhd->wlfc_state == NULL) {
 		dhd_os_wlfc_unblock(dhd);
 		return;
-	}
-
-	while (!pktq_empty(&wlfc->bcmcq)) {
-		void * pkt = pktdeq(&wlfc->bcmcq);
-		PKTFREE(wlfc->osh, pkt, TRUE);
 	}
 
 #ifdef PROP_TXSTATUS_DEBUG

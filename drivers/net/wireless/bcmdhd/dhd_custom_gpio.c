@@ -2,7 +2,7 @@
 * Customer code to add GPIO control during WLAN start/stop
 * $Copyright Open Broadcom Corporation$
 *
-* $Id: dhd_custom_gpio.c 390639 2013-03-13 00:59:39Z $
+* $Id: dhd_custom_gpio.c 389250 2013-03-06 02:05:03Z $
 */
 
 #include <typedefs.h>
@@ -24,6 +24,11 @@ extern  void bcm_wlan_power_off(int);
 extern  void bcm_wlan_power_on(int);
 #endif /* CUSTOMER_HW */
 #if defined(CUSTOMER_HW2)
+
+#if defined(PLATFORM_MPS)
+int __attribute__ ((weak)) wifi_get_fw_nv_path(char *fw, char *nv) { return 0;};
+#endif
+
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 int wifi_set_power(int on, unsigned long msec);
 int wifi_get_irq_number(unsigned long *irq_flags_ptr);
@@ -43,14 +48,13 @@ void *wifi_get_country_code(char *ccode) { return NULL; }
 extern int sdioh_mmc_irq(int irq);
 #endif /* (BCMLXSDMMC)  */
 
-#ifdef CUSTOMER_HW3
+#if defined(CUSTOMER_HW3) || defined(PLATFORM_MPS)
 #include <mach/gpio.h>
 #endif
 
 #define islower(c)  (c >=  'a' && c <= 'z')
 #define isdigit(c)  (c >= '0' && c <= '9')
 #define toupper(c)  (islower(c) ? (c - 'a' + 'A') : (c))
-
 /* Customer specific Host GPIO defintion  */
 static int dhd_oob_gpio_num = -1;
 
@@ -108,7 +112,7 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 {
 	int  host_oob_irq = 0;
 
-#if defined(CUSTOMER_HW2)
+#if defined(CUSTOMER_HW2) && !defined(PLATFORM_MPS)
 	host_oob_irq = wifi_get_irq_number(irq_flags_ptr);
 
 #else
@@ -129,7 +133,7 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 
 #if defined CUSTOMER_HW
 	host_oob_irq = MSM_GPIO_TO_INT(dhd_oob_gpio_num);
-#elif defined CUSTOMER_HW3
+#elif defined CUSTOMER_HW3 || defined(PLATFORM_MPS)
 	gpio_request(dhd_oob_gpio_num, "oob irq");
 	host_oob_irq = gpio_to_irq(dhd_oob_gpio_num);
 	gpio_direction_input(dhd_oob_gpio_num);
@@ -245,7 +249,7 @@ dhd_custom_get_mac_address(unsigned char *buf)
                                         
                       scru_ascii_2_hex (p_start+1, 12,text_addr);  
  
-                        strncpy(buf,text_addr,6);   
+                        memcpy(buf,text_addr,6);   
                      
                         printk("get wifi NV address=%x:%x:%x:%x:%x:%x\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]); 
                         ret = 0;      
@@ -315,68 +319,6 @@ const struct cntry_locales_custom translate_custom_table[] = {
 	{"TR", "TR", 0},
 	{"NO", "NO", 0},
 #endif /* EXMAPLE_TABLE */
-#if defined(CUSTOMER_HW2)
-#if defined(BCM4335_CHIP)
-	{"",   "XZ", 11},  /* Universal if Country code is unknown or empty */
-#endif
-	{"AE", "AE", 1},
-	{"AR", "AR", 1},
-	{"AT", "AT", 1},
-	{"AU", "AU", 2},
-	{"BE", "BE", 1},
-	{"BG", "BG", 1},
-	{"BN", "BN", 1},
-	{"CA", "CA", 2},
-	{"CH", "CH", 1},
-	{"CY", "CY", 1},
-	{"CZ", "CZ", 1},
-	{"DE", "DE", 3},
-	{"DK", "DK", 1},
-	{"EE", "EE", 1},
-	{"ES", "ES", 1},
-	{"FI", "FI", 1},
-	{"FR", "FR", 1},
-	{"GB", "GB", 1},
-	{"GR", "GR", 1},
-	{"HR", "HR", 1},
-	{"HU", "HU", 1},
-	{"IE", "IE", 1},
-	{"IS", "IS", 1},
-	{"IT", "IT", 1},
-	{"ID", "ID", 1},
-	{"JP", "JP", 8},
-	{"KR", "KR", 24},
-	{"KW", "KW", 1},
-	{"LI", "LI", 1},
-	{"LT", "LT", 1},
-	{"LU", "LU", 1},
-	{"LV", "LV", 1},
-	{"MA", "MA", 1},
-	{"MT", "MT", 1},
-	{"MX", "MX", 1},
-	{"NL", "NL", 1},
-	{"NO", "NO", 1},
-	{"PL", "PL", 1},
-	{"PT", "PT", 1},
-	{"PY", "PY", 1},
-	{"RO", "RO", 1},
-	{"SE", "SE", 1},
-	{"SI", "SI", 1},
-	{"SK", "SK", 1},
-	{"TR", "TR", 7},
-	{"TW", "TW", 1},
-	{"IR", "XZ", 11},	/* Universal if Country code is IRAN, (ISLAMIC REPUBLIC OF) */
-	{"SD", "XZ", 11},	/* Universal if Country code is SUDAN */
-	{"SY", "XZ", 11},	/* Universal if Country code is SYRIAN ARAB REPUBLIC */
-	{"GL", "XZ", 11},	/* Universal if Country code is GREENLAND */
-	{"PS", "XZ", 11},	/* Universal if Country code is PALESTINIAN TERRITORY, OCCUPIED */
-	{"TL", "XZ", 11},	/* Universal if Country code is TIMOR-LESTE (EAST TIMOR) */
-	{"MH", "XZ", 11},	/* Universal if Country code is MARSHALL ISLANDS */
-#ifdef BCM4330_CHIP
-	{"RU", "RU", 1},
-	{"US", "US", 5}
-#endif
-#endif /* CUSTOMER_HW2 */
 };
 
 

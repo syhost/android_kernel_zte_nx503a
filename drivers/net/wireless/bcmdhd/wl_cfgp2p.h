@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: wl_cfgp2p.h 393805 2013-03-28 22:24:36Z $
+ * $Id: wl_cfgp2p.h 386595 2013-02-21 07:03:27Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -54,6 +54,8 @@ struct p2p_bss {
 struct p2p_info {
 	bool on;    /* p2p on/off switch */
 	bool scan;
+	int16 search_state;
+
 	bool vif_created;
 	s8 vir_ifname[IFNAMSIZ];
 	unsigned long status;
@@ -83,7 +85,8 @@ struct parsed_vndr_ies {
 enum wl_cfgp2p_status {
 	WLP2P_STATUS_DISCOVERY_ON = 0,
 	WLP2P_STATUS_SEARCH_ENABLED,
-	WLP2P_STATUS_IF_ADDING,
+	WLP2P_STATUS_IF_ADD,
+	WLP2P_STATUS_IF_DEL,
 	WLP2P_STATUS_IF_DELETING,
 	WLP2P_STATUS_IF_CHANGING,
 	WLP2P_STATUS_IF_CHANGED,

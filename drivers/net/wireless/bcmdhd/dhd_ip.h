@@ -5,7 +5,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_ip.h 387757 2013-02-27 01:09:03Z $
+ * $Id$
  */
 
 #ifndef _dhd_ip_h_

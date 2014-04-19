@@ -4,13 +4,14 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: siutils.c 392557 2013-03-22 16:54:55Z $
+ * $Id: siutils.c 386309 2013-02-20 06:13:57Z $
  */
 
 #include <bcm_cfg.h>
 #include <typedefs.h>
 #include <bcmdefs.h>
 #include <osl.h>
+#include <bcmutils.h>
 #include <siutils.h>
 #include <bcmdevs.h>
 #include <hndsoc.h>

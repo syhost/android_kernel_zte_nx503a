@@ -14,6 +14,8 @@
 *******************************************************************************/
 // ioctl numbers
 //#include <types.h>
+#include <linux/wakelock.h>
+
 #define TAOS_IOCTL_MAGIC        	0XCF
 #define TAOS_IOCTL_ALS_ON       	_IO(TAOS_IOCTL_MAGIC, 1)
 #define TAOS_IOCTL_ALS_OFF      	_IO(TAOS_IOCTL_MAGIC, 2)
@@ -81,6 +83,13 @@ struct taos_prox_info
         u16 prox_data;
         int prox_event;
 };
+
+struct taos_wake_lock{
+    struct wake_lock lock;
+    bool   locked;
+    char   *name;
+};
+
 // add by clli2 for proximity debug
 enum
 {

@@ -165,8 +165,8 @@ struct proc_dir_entry *bluetooth_dir, *sleep_dir;
  */
 static void hsuart_power(int on)
 {
-            /*if (test_bit(BT_SUSPEND, &flags))
-                    return;*/
+       if (test_bit(BT_SUSPEND, &flags))
+              return;
 	if (on) {
 		msm_hs_request_clock_on(bsi->uport);
 		msm_hs_set_mctrl(bsi->uport, TIOCM_RTS);
@@ -184,6 +184,8 @@ static void hsuart_power(int on)
  */
     int bluesleep_can_sleep(void)
 {
+	BT_DBG("(gpio_get_value(bsi->host_wake) != bsi->irq_polarity is %d,(!test_bit(BT_EXT_WAKE, &flags)) is %d,(bsi->uport != NULL) is %d",
+		gpio_get_value(bsi->host_wake) != bsi->irq_polarity,!test_bit(BT_EXT_WAKE, &flags),bsi->uport != NULL);
 	/* check if MSM_WAKE_BT_GPIO and BT_WAKE_MSM_GPIO are both deasserted */
             return ((gpio_get_value(bsi->host_wake) != bsi->irq_polarity) &&
                     (!test_bit(BT_EXT_WAKE, &flags)) &&
@@ -317,12 +319,16 @@ static int bluesleep_outgoing_data(void)
     {
             char b;
 
+		BT_DBG("zhanglongbo: bluesleep_write_proc_lpm in");
+
             if (count < 1)
                     return -EINVAL;
 
             if (copy_from_user(&b, buffer, 1))
                     return -EFAULT;
 
+		BT_DBG("zhanglongbo: b is %c",b);
+		
             if (b == '0') {
                     /* HCI_DEV_UNREG */
                     bluesleep_stop();
@@ -523,6 +529,7 @@ static void bluesleep_stop(void)
 
 	spin_lock_irqsave(&rw_lock, irq_flags);
 	if (!test_bit(BT_PROTO, &flags)) {
+
 		spin_unlock_irqrestore(&rw_lock, irq_flags);
 		return;
 	}
@@ -530,6 +537,7 @@ static void bluesleep_stop(void)
             if (bsi->has_ext_wake == 1)
                     gpio_set_value(bsi->ext_wake, 1);
             set_bit(BT_EXT_WAKE, &flags);
+
 	del_timer(&tx_timer);
 	clear_bit(BT_PROTO, &flags);
 

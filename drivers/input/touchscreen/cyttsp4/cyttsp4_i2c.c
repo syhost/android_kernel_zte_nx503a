@@ -171,8 +171,6 @@ static int cyttsp4_power_on(struct device *dev)
         goto error_reg_en_vcc_ana;
     }
     
-    /*******************/
-
 	vcc_i2c = regulator_get(dev, "vcc_i2c");
 	if (IS_ERR(vcc_i2c))
     {
@@ -180,24 +178,7 @@ static int cyttsp4_power_on(struct device *dev)
 		dev_err(dev, "Regulator get failed rc=%d\n", rc);
 		goto error_reg_opt_vcc_dig;
 	}
-/*    
-	if (regulator_count_voltages(vcc_i2c) > 0)
-    {
- 		rc = regulator_set_voltage(vcc_i2c, 1800000, 1800000);
-		if (rc)
-        {
-			dev_err(dev, "Regulator set i2c vtg failed rc=%d\n", rc);
-			goto error_set_vtg_i2c;
-		}
-	}
-    
-    rc = reg_set_optimum_mode_check(vcc_i2c, 10000);
-    if (rc < 0)
-    {
-        dev_err(dev, "Regulator vcc_i2c set_opt failed rc=%d\n", rc);
-        goto error_set_vtg_i2c;
-    }
-*/
+
     rc = regulator_enable(vcc_i2c);
     if (rc)
     {
@@ -211,8 +192,6 @@ static int cyttsp4_power_on(struct device *dev)
 
 error_reg_en_vcc_i2c:
     reg_set_optimum_mode_check(vcc_i2c, 0);
-//error_set_vtg_i2c:
-//    regulator_put(vcc_i2c);
 error_reg_opt_vcc_dig:
     regulator_disable(vcc_ana);
 error_reg_en_vcc_ana:

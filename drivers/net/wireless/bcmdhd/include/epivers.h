@@ -10,21 +10,21 @@
 
 #define	EPI_MAJOR_VERSION	1
 
-#define	EPI_MINOR_VERSION	99
+#define	EPI_MINOR_VERSION	88
 
-#define	EPI_RC_NUMBER		0
+#define	EPI_RC_NUMBER		10
 
 #define	EPI_INCREMENTAL_NUMBER	0
 
 #define	EPI_BUILD_NUMBER	0
 
-#define	EPI_VERSION		1, 99, 0, 0
+#define	EPI_VERSION		1, 88, 10, 0
 
-#define	EPI_VERSION_NUM		0x01630000
+#define	EPI_VERSION_NUM		0x01580a00
 
-#define EPI_VERSION_DEV		1.99.0
+#define EPI_VERSION_DEV		1.88.10
 
-/* Driver Version String, ASCII, 32 chars max */
-#define	EPI_VERSION_STR		"1.99 (r395402)"
 
-#endif /* _epivers_h_ */
+#define	EPI_VERSION_STR		"1.88.10 (r395294)"
+
+#endif 

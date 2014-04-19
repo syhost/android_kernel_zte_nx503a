@@ -1569,145 +1569,202 @@ static int _cyttsp4_ret_scan_data_cmd(struct device *dev, int readOffset,
 static ssize_t cyttsp4_get_panel_data_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct cyttsp4_device_access_data *dad = dev_get_drvdata(dev);
-	u8 return_buf[CY_CMD_CAT_RET_PANEL_DATA_RET_SZ];
-
-	int rc = 0;
-	int rc1 = 0;
-	int dataIdx = -1;
-	int i = 0;
-	int printIdx = -1;
-	u8 cmdParam_ofs = dad->si->si_ofs.cmd_ofs + 1;
-	int readByte = CY_CMD_CAT_RET_PANEL_DATA_RET_SZ + cmdParam_ofs;
-	int leftOverElement = 0;
-	int returnedElement = 0;
-	int readElementOffset = 0;
-	u8 elementStartOffset = cmdParam_ofs + CY_CMD_CAT_RET_PANEL_DATA_RET_SZ;
-
-	rc = cyttsp4_request_exclusive(dad->ttsp,
-			CY_DA_REQUEST_EXCLUSIVE_TIMEOUT);
-	if (rc < 0) {
-		dev_err(dev, "%s: Error on request exclusive r=%d\n",
-				__func__, rc);
-		goto cyttsp4_get_panel_data_show_err_release;
-	}
-
-	if (dad->heatmap.scan_start)	{
-		/* Start scan */
-		rc = _cyttsp4_exec_scan_cmd(dev);
-		if (rc < 0)
-			goto cyttsp4_get_panel_data_show_err_release;
-	}
-	/* retrieve scan data */
-	rc = _cyttsp4_ret_scan_data_cmd(dev, CY_CMD_IN_DATA_OFFSET_VALUE,
-			dad->heatmap.numElement, dad->heatmap.dataType,
-			return_buf);
-
-	if (rc < 0)
-		goto cyttsp4_get_panel_data_show_err_release;
-	if (return_buf[CY_CMD_OUT_STATUS_OFFSET] != CY_CMD_STATUS_SUCCESS)
-		goto cyttsp4_get_panel_data_show_err_release;
-
-	/* read data */
-	readByte += (dad->heatmap.numElement *
-			(return_buf[CY_CMD_RET_PNL_OUT_DATA_FORMAT_OFFS] &
-				CY_CMD_RET_PANEL_ELMNT_SZ_MASK));
-
-	if (readByte >= I2C_BUF_MAX_SIZE) {
-		rc = cyttsp4_read(dad->ttsp, CY_MODE_CAT, 0, dad->ic_buf,
-				I2C_BUF_MAX_SIZE);
-		dataIdx = I2C_BUF_MAX_SIZE;
-	} else {
-		rc = cyttsp4_read(dad->ttsp, CY_MODE_CAT, 0, dad->ic_buf,
-				readByte);
-		dataIdx = readByte;
-	}
-	if (rc < 0) {
-		dev_err(dev, "%s: Error on read r=%d\n", __func__, readByte);
-		goto cyttsp4_get_panel_data_show_err_release;
-	}
-
-	if (readByte < I2C_BUF_MAX_SIZE)
-		goto cyttsp4_get_panel_data_show_err_release;
-
-	leftOverElement = dad->heatmap.numElement;
-	readElementOffset = 0;
-	returnedElement =
-		return_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_H] * 256
-		+ return_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_L];
-
-	leftOverElement -= returnedElement;
-	readElementOffset += returnedElement;
-	do {
-		/* get the data */
-		rc = _cyttsp4_ret_scan_data_cmd(dev, readElementOffset,
-				leftOverElement, dad->heatmap.dataType,
-				return_buf);
-		if (rc < 0)
-			goto cyttsp4_get_panel_data_show_err_release;
-
-		if (return_buf[CY_CMD_OUT_STATUS_OFFSET]
-				!= CY_CMD_STATUS_SUCCESS)
-			goto cyttsp4_get_panel_data_show_err_release;
-
-		/* DO read */
-		readByte = leftOverElement *
-			(return_buf[CY_CMD_RET_PNL_OUT_DATA_FORMAT_OFFS]
-				& CY_CMD_RET_PANEL_ELMNT_SZ_MASK);
-
-		if (readByte >= (I2C_BUF_MAX_SIZE - elementStartOffset)) {
-			rc = cyttsp4_read(dad->ttsp, CY_MODE_CAT,
-					elementStartOffset,
-					dad->ic_buf + dataIdx,
-					I2C_BUF_MAX_SIZE - elementStartOffset);
-			dataIdx += (I2C_BUF_MAX_SIZE - elementStartOffset);
-		} else {
-			rc = cyttsp4_read(dad->ttsp, CY_MODE_CAT,
-					elementStartOffset,
-					dad->ic_buf + dataIdx, readByte);
-			dataIdx += readByte;
-		}
-		if (rc < 0) {
-			dev_err(dev, "%s: Error on read r=%d\n", __func__, rc);
-			goto cyttsp4_get_panel_data_show_err_release;
-		}
-		returnedElement =
-			return_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_H] * 256
-			+ return_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_L];
-		/* Update element status */
-		leftOverElement -= returnedElement;
-		readElementOffset += returnedElement;
-
-	} while (leftOverElement > 0);
-	/* update on the buffer */
-	dad->ic_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_H + cmdParam_ofs] =
-		HI_BYTE(readElementOffset);
-	dad->ic_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_L + cmdParam_ofs] =
-		LOW_BYTE(readElementOffset);
-
+        struct cyttsp4_device_access_data *dad = dev_get_drvdata(dev);
+        u8 return_buf[CY_CMD_CAT_RETRIEVE_PANEL_SCAN_RET_SZ];
+ 
+        int rc = 0;
+        int rc1 = 0;
+        int data_idx = 0;
+        int i = 0;
+        int print_idx = -1;
+        u8 cmd_param_ofs = dad->si->si_ofs.cmd_ofs + 1;
+        int read_byte = CY_CMD_CAT_RETRIEVE_PANEL_SCAN_RET_SZ + cmd_param_ofs;
+        int read_byte1 = 0;
+        int left_over_element = dad->heatmap.numElement;
+        int read_element_offset = CY_CMD_IN_DATA_OFFSET_VALUE;
+        int returned_element;
+        u8 element_start_offset = cmd_param_ofs
+                + CY_CMD_CAT_RETRIEVE_PANEL_SCAN_RET_SZ;
+ 
+ 
+        rc = cyttsp4_request_exclusive(dad->ttsp,
+                        CY_DA_REQUEST_EXCLUSIVE_TIMEOUT);
+        if (rc < 0) {
+                dev_err(dev, "%s: Error on request exclusive r=%d\n",
+                                __func__, rc);
+                goto cyttsp4_get_panel_data_show_err_release;
+        }
+ 
+        if (dad->heatmap.scan_start)    {
+                /* Start scan */
+                rc = _cyttsp4_exec_scan_cmd(dev);
+                if (rc < 0) {
+                        dev_err(dev, "%s: Error on _cyttsp4_exec_scan_cmd()\n",
+                                __func__);
+                        goto cyttsp4_get_panel_data_show_err_release;
+                }
+        }
+ 
+        /* retrieve scan data */
+        rc = _cyttsp4_ret_scan_data_cmd(dev, read_element_offset,
+                        left_over_element, dad->heatmap.dataType, return_buf);
+        if (rc < 0) {
+                dev_err(dev, "%s: Error on _cyttsp4_ret_scan_data_cmd(), offset=%d numElement:%d\n",
+                        __func__, read_element_offset, left_over_element);
+                goto cyttsp4_get_panel_data_show_err_release;
+        }
+        if (return_buf[CY_CMD_OUT_STATUS_OFFSET] != CY_CMD_STATUS_SUCCESS) {
+                dev_err(dev, "%s: Fail on _cyttsp4_ret_scan_data_cmd(), offset=%d numElement:%d\n",
+                        __func__, read_element_offset, left_over_element);
+                goto cyttsp4_get_panel_data_show_err_release;
+        }
+ 
+        returned_element = return_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_H] * 256
+                + return_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_L];
+ 
+        dev_dbg(dev, "%s: _cyttsp4_ret_scan_data_cmd(): numElement:%d\n",
+                __func__, returned_element);
+ 
+        /* read data */
+        read_byte += returned_element *
+                        (return_buf[CY_CMD_RET_PNL_OUT_DATA_FORMAT_OFFS] &
+                                CY_CMD_RET_PANEL_ELMNT_SZ_MASK);
+ 
+        if(read_byte > 224)
+        {
+                dev_info(dev, "%s, read_byte > 224\n", __func__);
+                read_byte1 = 224 + element_start_offset;
+                rc = cyttsp4_read(dad->ttsp, CY_MODE_CAT, 0, dad->ic_buf, read_byte1);
+                if (rc < 0) {
+                        dev_err(dev, "%s: Error on read r=%d\n", __func__, rc);
+                        goto cyttsp4_get_panel_data_show_err_release;
+                }
+ 
+                left_over_element = dad->heatmap.numElement - 112;
+                read_element_offset = 112;
+                data_idx = read_byte1;
+        }
+        else
+        {
+                dev_info(dev, "%s, read_byte <= 224\n", __func__);
+                rc = cyttsp4_read(dad->ttsp, CY_MODE_CAT, 0, dad->ic_buf, read_byte);
+                if (rc < 0) {
+                        dev_err(dev, "%s: Error on read r=%d\n", __func__, rc);
+                        goto cyttsp4_get_panel_data_show_err_release;
+                }
+ 
+                left_over_element = dad->heatmap.numElement - returned_element;
+                read_element_offset = returned_element;
+                data_idx = read_byte;
+        }       
+ 
+        dev_info(dev, "%s: left_over_element=%d, read_element_offset=%d,data_idx=%d\n", __func__, left_over_element, read_element_offset,data_idx);
+ 
+        while (left_over_element > 0) {
+                /* get the data */
+                rc = _cyttsp4_ret_scan_data_cmd(dev, read_element_offset,
+                                left_over_element, dad->heatmap.dataType,
+                                return_buf);
+                if (rc < 0) {
+                        dev_err(dev, "%s: Error %d  on _cyttsp4_ret_scan_data_cmd(), offset=%d numElement:%d\n",
+                                __func__, rc, read_element_offset,
+                                left_over_element);
+                        goto cyttsp4_get_panel_data_show_err_release;
+                }
+                if (return_buf[CY_CMD_OUT_STATUS_OFFSET]
+                                != CY_CMD_STATUS_SUCCESS) {
+                        dev_err(dev, "%s: Fail on _cyttsp4_ret_scan_data_cmd(), offset=%d numElement:%d\n",
+                                __func__, read_element_offset,
+                                left_over_element);
+                        goto cyttsp4_get_panel_data_show_err_release;
+                }
+ 
+                returned_element =
+                        return_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_H] * 256
+                        + return_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_L];
+ 
+                dev_dbg(dev, "%s: _cyttsp4_ret_scan_data_cmd(): numElement:%d\n",
+                        __func__, returned_element);
+ 
+                /* Check if we requested more elements than the device has */
+                if (returned_element == 0) {
+                        dev_dbg(dev, "%s: returned_element=0, left_over_element=%d\n",
+                                __func__, left_over_element);
+                        break;
+                }
+ 
+                /* DO read */
+                read_byte = returned_element *
+                        (return_buf[CY_CMD_RET_PNL_OUT_DATA_FORMAT_OFFS]
+                                & CY_CMD_RET_PANEL_ELMNT_SZ_MASK);
+ 
+                if(read_byte > 224)
+                {       
+                        dev_info(dev, "%s, read_byte > 224\n", __func__);
+                        read_byte1 = 224;
+                        rc = cyttsp4_read(dad->ttsp, CY_MODE_CAT,
+                                        element_start_offset,
+                                        dad->ic_buf + data_idx,
+                                        read_byte1);
+                        if (rc < 0) {
+                                dev_err(dev, "%s: Error on read r=%d\n", __func__, rc);
+                                goto cyttsp4_get_panel_data_show_err_release;
+                        }
+ 
+                        /* Update element status */
+                        left_over_element -= 112;
+                        read_element_offset += 112;
+                        data_idx += read_byte1;
+                }
+                else
+                {
+                        dev_info(dev, "%s, read_byte <= 224\n", __func__);
+                        rc = cyttsp4_read(dad->ttsp, CY_MODE_CAT,
+                                        element_start_offset,
+                                        dad->ic_buf + data_idx,
+                                        read_byte);
+                        if (rc < 0) {
+                                dev_err(dev, "%s: Error on read r=%d\n", __func__, rc);
+                                goto cyttsp4_get_panel_data_show_err_release;
+                        }
+ 
+                        left_over_element -= returned_element;
+                        read_element_offset += returned_element;
+                        data_idx += read_byte;
+                }       
+ 
+                dev_info(dev, "%s left_over_element=%d, read_element_offset=%d,data_idx=%d\n", __func__, left_over_element, read_element_offset,data_idx);
+ 
+        }
+        /* update on the buffer */
+        dad->ic_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_H + cmd_param_ofs] =
+                HI_BYTE(read_element_offset);
+        dad->ic_buf[CY_CMD_RET_PNL_OUT_ELMNT_SZ_OFFS_L + cmd_param_ofs] =
+                LO_BYTE(read_element_offset);
+ 
 cyttsp4_get_panel_data_show_err_release:
-	rc1 = cyttsp4_release_exclusive(dad->ttsp);
-	if (rc1 < 0) {
-		dev_err(dev, "%s: Error on release exclusive r=%d\n",
-				__func__, rc1);
-		goto cyttsp4_get_panel_data_show_err_sysfs;
-	}
-
-	if (rc < 0)
-		goto cyttsp4_get_panel_data_show_err_sysfs;
-
-	printIdx = 0;
-	printIdx += scnprintf(buf, CY_MAX_PRBUF_SIZE, "CY_DATA:");
-	for (i = 0; i < dataIdx; i++) {
-		printIdx += scnprintf(buf + printIdx,
-				CY_MAX_PRBUF_SIZE - printIdx,
-				"%02X ", dad->ic_buf[i]);
-	}
-	printIdx += scnprintf(buf + printIdx, CY_MAX_PRBUF_SIZE - printIdx,
-			":(%d bytes)\n", dataIdx);
-
+        rc1 = cyttsp4_release_exclusive(dad->ttsp);
+        if (rc1 < 0) {
+                dev_err(dev, "%s: Error on release exclusive r=%d\n",
+                                __func__, rc1);
+                goto cyttsp4_get_panel_data_show_err_sysfs;
+        }
+ 
+        if (rc < 0)
+                goto cyttsp4_get_panel_data_show_err_sysfs;
+ 
+        print_idx = 0;
+        print_idx += scnprintf(buf, CY_MAX_PRBUF_SIZE, "CY_DATA:");
+        for (i = 0; i < data_idx; i++) {
+                print_idx += scnprintf(buf + print_idx,
+                                CY_MAX_PRBUF_SIZE - print_idx,
+                                "%02X ", dad->ic_buf[i]);
+        }
+        print_idx += scnprintf(buf + print_idx, CY_MAX_PRBUF_SIZE - print_idx,
+                        ":(%d bytes)\n", data_idx);
+ 
 cyttsp4_get_panel_data_show_err_sysfs:
-	return printIdx;
+        return print_idx;
 }
 
 /*

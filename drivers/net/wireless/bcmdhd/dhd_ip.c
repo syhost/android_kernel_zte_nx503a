@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_ip.c 388059 2013-02-27 23:59:15Z $
+ * $Id$
  */
 #include <typedefs.h>
 #include <osl.h>

@@ -35,7 +35,7 @@ static int debug_device_info_mask = 1;
 module_param_named(debug_device_info_mask, debug_device_info_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 #define DBG_DEVICE_INFO(x...) do {if (debug_device_info_mask) pr_info(">>ZTEMT_DEVICE_INFO>>  " x); } while (0)
 
-//打开调试接口
+//麓貌驴陋碌梅脢脭陆脫驴脷
 #define DEBUG 
 #undef KERN_DEBUG
 #define KERN_DEBUG KERN_ERR
@@ -47,13 +47,20 @@ module_param_named(debug_device_info_mask, debug_device_info_mask, int, S_IRUGO 
 #define ADC_HW_ID       LR_MUX4_AMUX_THM1
 
 
-#define PROJECT_ID_MAX   4
-#define HRADWARE_ID_MAX  4
+#define PROJECT_ID_MAX   5
+#define HRADWARE_ID_MAX  5
 struct hardware_id_map_st hardware_id_map[PROJECT_ID_MAX][HRADWARE_ID_MAX] = {
   {
   	{0, 	0,		Z5S_HW_INVALID,	"unknow" ,DEVICE_INDEX_INVALID},  //id_mv=0
 	},
 			//0V
+	{
+		{0, 	0,		Z5S_HW_INVALID,	"unknow" ,DEVICE_INDEX_INVALID},  //id_mv=0
+		{0, 	150,		Z5S_HW_01AMB_B,	"QB8974_01AMB_B" ,DEVICE_01AMB_B_BCM4339},  //id_mv=0
+		{750, 	1050,	Z5S_HW_01AMB_D,	"QB8974_01AMB_D", DEVICE_01AMB_D},  //id_mv= 0.9V
+		{1650, 	1950,	Z5S_HW_01AMB_C,	"QB8974_01AMB_C", DEVICE_01AMB_C}  //id_mv= 1.8V
+  },
+  			//0.3V
 	{
 		{0, 	0,		Z5S_HW_INVALID,	"unknow" ,DEVICE_INDEX_INVALID},  //id_mv=0
 		{0, 	150,		Z5S_HW_01AMB_B,	"QB8974_01AMB_B" ,DEVICE_01AMB_B_BCM4339},  //id_mv=0
@@ -79,6 +86,7 @@ struct hardware_id_map_st hardware_id_map[PROJECT_ID_MAX][HRADWARE_ID_MAX] = {
 struct project_id_map_st project_id_map[] = {
 	{0, 0,Z5S_PROJECT_INVALID,"unknow"},  //id_mv=0
 	{0, 150,Z5S_PROJECT_AMB,"QB8974_01AMB"},  //id_mv=0
+	{150, 450,Z5S_PROJECT_NX503J_V4,"NX503J_V4"},  //id_mv=0.3V
 	{750, 1050,Z5S_PROJECT_AMB_SIMPLIFY,"QB8974_01AMB_SIMPLIFY"},  //id_mv= 0.9V	
 	{1650, 1950,Z5S_PROJECT_AMBC,"QB8974_01AMBC"},  //id_mv= 1.8V
 };
@@ -211,7 +219,7 @@ DBG_DEVICE_INFO("hw_id_uv.physical = %lld \n", adc_result.physical);
 int ztemt_get_device_index(char* result)
 {
 	int hw_id, project_id;
-	/* 默认为降成本版本*/
+	/* 脛卢脠脧脦陋陆碌鲁脡卤戮掳忙卤戮*/
 	device_index_type device_index = 
 							DEVICE_01AMB_B_WTR1605_L_EMMC_16_32;
 	

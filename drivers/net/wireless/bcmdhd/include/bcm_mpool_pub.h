@@ -37,7 +37,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: bcm_mpool_pub.h 393217 2013-03-26 21:30:11Z $
+ * $Id$
  */
 
 #ifndef _BCM_MPOOL_PUB_H

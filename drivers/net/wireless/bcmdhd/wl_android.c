@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: wl_android.c 394376 2013-04-02 08:38:00Z $
+ * $Id: wl_android.c 394377 2013-04-02 08:43:51Z $
  */
 
 #include <linux/module.h>
@@ -63,7 +63,7 @@
 #define CMD_P2P_SET_PS		"P2P_SET_PS"
 #define CMD_SET_AP_WPS_P2P_IE 		"SET_AP_WPS_P2P_IE"
 #define CMD_SETROAMMODE 	"SETROAMMODE"
-#define CMD_SETMIRACASTSRC	"SETMIRACAST_SOURCE"
+#define CMD_MIRACAST		"MIRACAST"
 
 #if defined(WL_SUPPORT_AUTO_CHANNEL)
 #define CMD_GET_BEST_CHANNELS	"GET_BEST_CHANNELS"
@@ -118,15 +118,24 @@ typedef struct cmd_tlv {
 #define MAX_NUM_MAC_FILT        10
 
 
+/* miracast related definition */
+#define MIRACAST_MODE_OFF	0
+#define MIRACAST_MODE_SOURCE	1
+#define MIRACAST_MODE_SINK	2
+
 #ifndef MIRACAST_AMPDU_SIZE
 #define MIRACAST_AMPDU_SIZE	8
 #endif
 
 static LIST_HEAD(miracast_resume_list);
+static u8 miracast_cur_mode;
 
-struct iovar_cfg {
+struct io_cfg {
 	s8 *iovar;
 	s32 param;
+	u32 ioctl;
+	void *arg;
+	u32 len;
 	struct list_head list;
 };
 
@@ -136,59 +145,6 @@ typedef struct android_wifi_priv_cmd {
 	int total_len;
 } android_wifi_priv_cmd;
 
-#if defined(BCMFW_ROAM_ENABLE)
-#define CMD_SET_ROAMPREF	"SET_ROAMPREF"
-
-#define MAX_NUM_SUITES		10
-#define WIDTH_AKM_SUITE		8
-#define JOIN_PREF_RSSI_LEN		0x02
-#define JOIN_PREF_RSSI_SIZE		4	/* RSSI pref header size in bytes */
-#define JOIN_PREF_WPA_HDR_SIZE		4 /* WPA pref header size in bytes */
-#define JOIN_PREF_WPA_TUPLE_SIZE	12	/* Tuple size in bytes */
-#define JOIN_PREF_MAX_WPA_TUPLES	16
-#define MAX_BUF_SIZE		(JOIN_PREF_RSSI_SIZE + JOIN_PREF_WPA_HDR_SIZE +	\
-				           (JOIN_PREF_WPA_TUPLE_SIZE * JOIN_PREF_MAX_WPA_TUPLES))
-#endif /* BCMFW_ROAM_ENABLE */
-
-#ifdef WL_GENL
-static s32 wl_genl_handle_msg(struct sk_buff *skb, struct genl_info *info);
-static int wl_genl_init(void);
-static int wl_genl_deinit(void);
-
-extern struct net init_net;
-/* attribute policy: defines which attribute has which type (e.g int, char * etc)
- * possible values defined in net/netlink.h
- */
-static struct nla_policy wl_genl_policy[BCM_GENL_ATTR_MAX + 1] = {
-	[BCM_GENL_ATTR_STRING] = { .type = NLA_NUL_STRING },
-	[BCM_GENL_ATTR_MSG] = { .type = NLA_BINARY },
-};
-
-#define WL_GENL_VER 1
-/* family definition */
-static struct genl_family wl_genl_family = {
-	.id = GENL_ID_GENERATE,    /* Genetlink would generate the ID */
-	.hdrsize = 0,
-	.name = "bcm-genl",        /* Netlink I/F for Android */
-	.version = WL_GENL_VER,     /* Version Number */
-	.maxattr = BCM_GENL_ATTR_MAX,
-};
-
-/* commands: mapping between the command enumeration and the actual function */
-struct genl_ops wl_genl_ops = {
-	.cmd = BCM_GENL_CMD_MSG,
-	.flags = 0,
-	.policy = wl_genl_policy,
-	.doit = wl_genl_handle_msg,
-	.dumpit = NULL,
-};
-
-static struct genl_multicast_group wl_genl_mcast = {
-	.id = GENL_ID_GENERATE,    /* Genetlink would generate the ID */
-	.name = "bcm-genl-mcast",
-};
-
-#endif /* WL_GENL */
 
 /**
  * Extern function declarations (TODO: move them to dhd_linux.h)
@@ -212,7 +168,7 @@ int wl_cfg80211_set_p2p_ps(struct net_device *net, char* buf, int len)
 extern int dhd_os_check_if_up(void *dhdp);
 #ifdef BCMLXSDMMC
 extern void *bcmsdh_get_drvdata(void);
-#endif
+#endif /* BCMLXSDMMC */
 #if defined(PROP_TXSTATUS) && !defined(PROP_TXSTATUS_VSDB)
 extern int dhd_wlfc_init(dhd_pub_t *dhd);
 extern void dhd_wlfc_deinit(dhd_pub_t *dhd);
@@ -832,207 +788,143 @@ int wl_android_set_roam_mode(struct net_device *dev, char *command, int total_le
 	return 0;
 }
 
-#if defined(BCMFW_ROAM_ENABLE)
 static int
-wl_android_set_roampref(struct net_device *dev, char *command, int total_len)
+wl_android_iolist_add(struct net_device *dev, struct list_head *head, struct io_cfg *config)
 {
-	int error = 0;
-	char smbuf[WLC_IOCTL_SMLEN];
-	uint8 buf[MAX_BUF_SIZE];
-	uint8 *pref = buf;
-	char *pcmd;
-	int num_ucipher_suites = 0;
-	int num_akm_suites = 0;
-	wpa_suite_t ucipher_suites[MAX_NUM_SUITES];
-	wpa_suite_t akm_suites[MAX_NUM_SUITES];
-	int num_tuples = 0;
-	int total_bytes = 0;
-	int total_len_left;
-	int i, j;
-	char hex[] = "XX";
+	struct io_cfg *resume_cfg;
+	s32 ret;
 
-	pcmd = command + strlen(CMD_SET_ROAMPREF) + 1;
-	total_len_left = total_len - strlen(CMD_SET_ROAMPREF) + 1;
-
-	num_akm_suites = simple_strtoul(pcmd, NULL, 16);
-	/* Increment for number of AKM suites field + space */
-	pcmd += 3;
-	total_len_left -= 3;
-
-	/* check to make sure pcmd does not overrun */
-	if (total_len_left < (num_akm_suites * WIDTH_AKM_SUITE))
-		return -1;
-
-	memset(buf, 0, sizeof(buf));
-	memset(akm_suites, 0, sizeof(akm_suites));
-	memset(ucipher_suites, 0, sizeof(ucipher_suites));
-
-	/* Save the AKM suites passed in the command */
-	for (i = 0; i < num_akm_suites; i++) {
-		/* Store the MSB first, as required by join_pref */
-		for (j = 0; j < 4; j++) {
-			hex[0] = *pcmd++;
-			hex[1] = *pcmd++;
-			buf[j] = (uint8)simple_strtoul(hex, NULL, 16);
-		}
-		memcpy((uint8 *)&akm_suites[i], buf, sizeof(uint32));
-	}
-
-	total_len_left -= (num_akm_suites * WIDTH_AKM_SUITE);
-	num_ucipher_suites = simple_strtoul(pcmd, NULL, 16);
-	/* Increment for number of cipher suites field + space */
-	pcmd += 3;
-	total_len_left -= 3;
-
-	if (total_len_left < (num_ucipher_suites * WIDTH_AKM_SUITE))
-		return -1;
-
-	/* Save the cipher suites passed in the command */
-	for (i = 0; i < num_ucipher_suites; i++) {
-		/* Store the MSB first, as required by join_pref */
-		for (j = 0; j < 4; j++) {
-			hex[0] = *pcmd++;
-			hex[1] = *pcmd++;
-			buf[j] = (uint8)simple_strtoul(hex, NULL, 16);
-		}
-		memcpy((uint8 *)&ucipher_suites[i], buf, sizeof(uint32));
-	}
-
-	/* Join preference for RSSI
-	 * Type	  : 1 byte (0x01)
-	 * Length : 1 byte (0x02)
-	 * Value  : 2 bytes	(reserved)
-	 */
-	*pref++ = WL_JOIN_PREF_RSSI;
-	*pref++ = JOIN_PREF_RSSI_LEN;
-	*pref++ = 0;
-	*pref++ = 0;
-
-	/* Join preference for WPA
-	 * Type	  : 1 byte (0x02)
-	 * Length : 1 byte (not used)
-	 * Value  : (variable length)
-	 *		reserved: 1 byte
-	 *      count	: 1 byte (no of tuples)
-	 *		Tuple1	: 12 bytes
-	 *			akm[4]
-	 *			ucipher[4]
-	 *			mcipher[4]
-	 *		Tuple2	: 12 bytes
-	 *		Tuplen	: 12 bytes
-	 */
-	num_tuples = num_akm_suites * num_ucipher_suites;
-	if (num_tuples != 0) {
-		if (num_tuples <= JOIN_PREF_MAX_WPA_TUPLES) {
-			*pref++ = WL_JOIN_PREF_WPA;
-			*pref++ = 0;
-			*pref++ = 0;
-			*pref++ = (uint8)num_tuples;
-			total_bytes = JOIN_PREF_RSSI_SIZE + JOIN_PREF_WPA_HDR_SIZE +
-				(JOIN_PREF_WPA_TUPLE_SIZE * num_tuples);
-		} else {
-			DHD_ERROR(("%s: Too many wpa configs for join_pref \n", __FUNCTION__));
-			return -1;
-		}
-	} else {
-		/* No WPA config, configure only RSSI preference */
-		total_bytes = JOIN_PREF_RSSI_SIZE;
-	}
-
-	/* akm-ucipher-mcipher tuples in the format required for join_pref */
-	for (i = 0; i < num_ucipher_suites; i++) {
-		for (j = 0; j < num_akm_suites; j++) {
-			memcpy(pref, (uint8 *)&akm_suites[j], WPA_SUITE_LEN);
-			pref += WPA_SUITE_LEN;
-			memcpy(pref, (uint8 *)&ucipher_suites[i], WPA_SUITE_LEN);
-			pref += WPA_SUITE_LEN;
-			/* Set to 0 to match any available multicast cipher */
-			memset(pref, 0, WPA_SUITE_LEN);
-			pref += WPA_SUITE_LEN;
-		}
-	}
-
-	prhex("join pref", (uint8 *)buf, total_bytes);
-	error = wldev_iovar_setbuf(dev, "join_pref", buf, total_bytes, smbuf, sizeof(smbuf), NULL);
-	if (error) {
-		DHD_ERROR(("Failed to set join_pref, error = %d\n", error));
-	}
-	return error;
-}
-#endif /* defined(BCMFW_ROAM_ENABLE */
-
-static int
-wl_android_iovarlist_add(struct net_device *dev, struct list_head *head, s8 *iovar, s32 val)
-{
-	struct iovar_cfg *config;
-	s32 resume_val, ret;
-
-	config = kzalloc(sizeof(struct iovar_cfg), GFP_KERNEL);
-	if (!config)
+	resume_cfg = kzalloc(sizeof(struct io_cfg), GFP_KERNEL);
+	if (!resume_cfg)
 		return -ENOMEM;
 
-	ret = wldev_iovar_getint(dev, iovar, &resume_val);
-	if (ret) {
-		DHD_ERROR(("%s: Failed to get current %s value\n", __FUNCTION__,
-			iovar));
-		goto error;
+	if (config->iovar) {
+		ret = wldev_iovar_getint(dev, config->iovar, &resume_cfg->param);
+		if (ret) {
+			DHD_ERROR(("%s: Failed to get current %s value\n",
+				__FUNCTION__, config->iovar));
+			goto error;
+		}
+
+		ret = wldev_iovar_setint(dev, config->iovar, config->param);
+		if (ret) {
+			DHD_ERROR(("%s: Failed to set %s to %d\n", __FUNCTION__,
+				config->iovar, config->param));
+			goto error;
+		}
+
+		resume_cfg->iovar = config->iovar;
+	} else {
+		resume_cfg->arg = kzalloc(config->len, GFP_KERNEL);
+		if (!resume_cfg->arg) {
+			ret = -ENOMEM;
+			goto error;
+		}
+		ret = wldev_ioctl(dev, config->ioctl, resume_cfg->arg, config->len, false);
+		if (ret) {
+			DHD_ERROR(("%s: Failed to get ioctl %d\n", __FUNCTION__,
+				config->ioctl));
+			goto error;
+		}
+		ret = wldev_ioctl(dev, config->ioctl + 1, config->arg, config->len, true);
+		if (ret) {
+			DHD_ERROR(("%s: Failed to set %s to %d\n", __FUNCTION__,
+				config->iovar, config->param));
+			goto error;
+		}
+		if (config->ioctl + 1 == WLC_SET_PM)
+			wl_cfg80211_update_power_mode(dev);
+		resume_cfg->ioctl = config->ioctl;
+		resume_cfg->len = config->len;
 	}
 
-	ret = wldev_iovar_setint(dev, iovar, val);
-	if (ret) {
-		DHD_ERROR(("%s: Failed to set %s to %d\n", __FUNCTION__,
-			iovar, val));
-		goto error;
-	}
-
-	config->iovar = iovar;
-	config->param = resume_val;
-	list_add(&config->list, head);
+	list_add(&resume_cfg->list, head);
 
 	return 0;
 error:
-	kfree(config);
+	kfree(resume_cfg->arg);
+	kfree(resume_cfg);
 	return ret;
+}
+
+static void
+wl_android_iolist_resume(struct net_device *dev, struct list_head *head)
+{
+	struct io_cfg *config;
+	struct list_head *cur, *q;
+
+	list_for_each_safe(cur, q, head) {
+		config = list_entry(cur, struct io_cfg, list);
+		if (config->iovar) {
+			wldev_iovar_setint(dev, config->iovar, config->param);
+		} else {
+			wldev_ioctl(dev, config->ioctl + 1, config->arg, config->len, true);
+			if (config->ioctl + 1 == WLC_SET_PM)
+				wl_cfg80211_update_power_mode(dev);
+			kfree(config->arg);
+		}
+		list_del(cur);
+		kfree(config);
+	}
 }
 
 static int
 wl_android_set_miracast(struct net_device *dev, char *command, int total_len)
 {
-	int mode;
+	int mode, val;
 	int ret = 0;
-	s32 param;
-	struct iovar_cfg *config;
-	struct list_head *cur, *q;
+	struct io_cfg config;
 
 	if (sscanf(command, "%*s %d", &mode) != 1) {
 		DHD_ERROR(("%s: Failed to get Parameter\n", __FUNCTION__));
 		return -1;
 	}
 
+	DHD_INFO(("%s: enter miracast mode %d\n", __FUNCTION__, mode));
 
-	if (mode) {
-		/* do nothing if we are already in miracast */
-		if (!list_empty(&miracast_resume_list))
-			return 0;
+	if (miracast_cur_mode == mode)
+		return 0;
 
-		DHD_INFO(("%s: entering miracast mode", __FUNCTION__));
+	wl_android_iolist_resume(dev, &miracast_resume_list);
+	miracast_cur_mode = MIRACAST_MODE_OFF;
+
+	switch (mode) {
+	case MIRACAST_MODE_SOURCE:
 		/* setting apmdu to platform specific value */
-		param = MIRACAST_AMPDU_SIZE;
-		ret = wl_android_iovarlist_add(dev, &miracast_resume_list, "ampdu_mpdu", param);
+		config.iovar = "ampdu_mpdu";
+		config.param = MIRACAST_AMPDU_SIZE;
+		ret = wl_android_iolist_add(dev, &miracast_resume_list, &config);
+		if (ret)
+			goto resume;
+	case MIRACAST_MODE_SINK:
+		/* disable internal roaming */
+		config.iovar = "roam_off";
+		config.param = 1;
+		ret = wl_android_iolist_add(dev, &miracast_resume_list, &config);
+		if (ret)
+			goto resume;
+		/* tunr off pm */
+		val = 0;
+		config.iovar = NULL;
+		config.ioctl = WLC_GET_PM;
+		config.arg = &val;
+		config.len = sizeof(int);
+		ret = wl_android_iolist_add(dev, &miracast_resume_list, &config);
 		if (ret)
 			goto resume;
 
-		return 0;
+		break;
+	case MIRACAST_MODE_OFF:
+	default:
+		break;
 	}
-resume:
-	/* resume to original mode */
-	list_for_each_safe(cur, q, &miracast_resume_list) {
-		config = list_entry(cur, struct iovar_cfg, list);
-		wldev_iovar_setint(dev, config->iovar, config->param);
-		list_del(cur);
-		kfree(config);
-	}
+	miracast_cur_mode = mode;
 
+	return 0;
+
+resume:
+	DHD_ERROR(("%s: turnoff miracast mode because of err%d\n", __FUNCTION__, ret));
+	wl_android_iolist_resume(dev, &miracast_resume_list);
 	return ret;
 }
 
@@ -1199,22 +1091,6 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		bytes_written = wl_cfg80211_set_p2p_noa(net, command + skip,
 			priv_cmd.total_len - skip);
 	}
-#ifdef WL_SDO
-	else if (strnicmp(command, CMD_P2P_SD_OFFLOAD, strlen(CMD_P2P_SD_OFFLOAD)) == 0) {
-		u8 *buf = command;
-		u8 *cmd_id = NULL;
-		int len;
-
-		cmd_id = strsep((char **)&buf, " ");
-		/* if buf == NULL, means no arg */
-		if (buf == NULL)
-			len = 0;
-		else
-			len = strlen(buf);
-
-		bytes_written = wl_cfg80211_sd_offload(net, cmd_id, buf, len);
-	}
-#endif /* WL_SDO */
 #if !defined WL_ENABLE_P2P_IF
 	else if (strnicmp(command, CMD_P2P_GET_NOA, strlen(CMD_P2P_GET_NOA)) == 0) {
 		bytes_written = wl_cfg80211_get_p2p_noa(net, command, priv_cmd.total_len);
@@ -1261,12 +1137,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 	else if (strnicmp(command, CMD_SETROAMMODE, strlen(CMD_SETROAMMODE)) == 0)
 		bytes_written = wl_android_set_roam_mode(net, command, priv_cmd.total_len);
-#if defined(BCMFW_ROAM_ENABLE)
-	else if (strnicmp(command, CMD_SET_ROAMPREF, strlen(CMD_SET_ROAMPREF)) == 0) {
-		bytes_written = wl_android_set_roampref(net, command, priv_cmd.total_len);
-	}
-#endif /* BCMFW_ROAM_ENABLE */
-	else if (strnicmp(command, CMD_SETMIRACASTSRC, strlen(CMD_SETMIRACASTSRC)) == 0)
+	else if (strnicmp(command, CMD_MIRACAST, strlen(CMD_MIRACAST)) == 0)
 		bytes_written = wl_android_set_miracast(net, command, priv_cmd.total_len);
 	else {
 		DHD_ERROR(("Unknown PRIVATE command %s - ignored\n", command));
@@ -1316,9 +1187,6 @@ int wl_android_init(void)
 	}
 #endif 
 
-#ifdef WL_GENL
-	wl_genl_init();
-#endif
 
 	return ret;
 }
@@ -1327,9 +1195,6 @@ int wl_android_exit(void)
 {
 	int ret = 0;
 
-#ifdef WL_GENL
-	wl_genl_deinit();
-#endif /* WL_GENL */
 
 	return ret;
 }
@@ -1349,232 +1214,6 @@ void wl_android_post_init(void)
 	}
 }
 
-#ifdef WL_GENL
-/* Generic Netlink Initializaiton */
-static int wl_genl_init(void)
-{
-	int ret;
-
-	WL_DBG(("GEN Netlink Init\n\n"));
-
-	/* register new family */
-	ret = genl_register_family(&wl_genl_family);
-	if (ret != 0)
-		goto failure;
-
-	/* register functions (commands) of the new family */
-	ret = genl_register_ops(&wl_genl_family, &wl_genl_ops);
-	if (ret != 0) {
-		WL_ERR(("register ops failed: %i\n", ret));
-		genl_unregister_family(&wl_genl_family);
-		goto failure;
-	}
-
-	ret = genl_register_mc_group(&wl_genl_family, &wl_genl_mcast);
-	if (ret != 0) {
-		WL_ERR(("register mc_group failed: %i\n", ret));
-		genl_unregister_ops(&wl_genl_family, &wl_genl_ops);
-		genl_unregister_family(&wl_genl_family);
-		goto failure;
-	}
-
-	return 0;
-
-failure:
-	WL_ERR(("Registering Netlink failed!!\n"));
-	return -1;
-}
-
-/* Generic netlink deinit */
-static int wl_genl_deinit(void)
-{
-	if (genl_unregister_ops(&wl_genl_family, &wl_genl_ops) < 0)
-		WL_ERR(("Unregister wl_genl_ops failed\n"));
-
-	if (genl_unregister_family(&wl_genl_family) < 0)
-		WL_ERR(("Unregister wl_genl_ops failed\n"));
-
-	return 0;
-}
-
-s32 wl_event_to_bcm_event(u16 event_type)
-{
-	u16 event = -1;
-
-	switch (event_type) {
-		case WLC_E_SERVICE_FOUND:
-			event = BCM_E_SVC_FOUND;
-			break;
-		case WLC_E_P2PO_ADD_DEVICE:
-			event = BCM_E_DEV_FOUND;
-			break;
-		case WLC_E_P2PO_DEL_DEVICE:
-			event = BCM_E_DEV_LOST;
-			break;
-	/* Above events are supported from BCM Supp ver 47 Onwards */
-
-		default:
-			WL_ERR(("Event not supported\n"));
-	}
-
-	return event;
-}
-
-s32
-wl_genl_send_msg(
-	struct net_device *ndev,
-	u32 event_type,
-	u8 *buf,
-	u16 len,
-	u8 *subhdr,
-	u16 subhdr_len)
-{
-	int ret = 0;
-	struct sk_buff *skb;
-	void *msg;
-	u32 attr_type = 0;
-	bcm_event_hdr_t *hdr = NULL;
-	int mcast = 1; /* By default sent as mutlicast type */
-	int pid = 0;
-	u8 *ptr = NULL, *p = NULL;
-	u32 tot_len = sizeof(bcm_event_hdr_t) + subhdr_len + len;
-	u16 kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
-
-
-	WL_DBG(("Enter \n"));
-
-	/* Decide between STRING event and Data event */
-	if (event_type == 0)
-		attr_type = BCM_GENL_ATTR_STRING;
-	else
-		attr_type = BCM_GENL_ATTR_MSG;
-
-	skb = genlmsg_new(NLMSG_GOODSIZE, kflags);
-	if (skb == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	msg = genlmsg_put(skb, 0, 0, &wl_genl_family, 0, BCM_GENL_CMD_MSG);
-	if (msg == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-
-	if (attr_type == BCM_GENL_ATTR_STRING) {
-		/* Add a BCM_GENL_MSG attribute. Since it is specified as a string.
-		 * make sure it is null terminated
-		 */
-		if (subhdr || subhdr_len) {
-			WL_ERR(("No sub hdr support for the ATTR STRING type \n"));
-			ret =  -EINVAL;
-			goto out;
-		}
-
-		ret = nla_put_string(skb, BCM_GENL_ATTR_STRING, buf);
-		if (ret != 0) {
-			WL_ERR(("nla_put_string failed\n"));
-			goto out;
-		}
-	} else {
-		/* ATTR_MSG */
-
-		/* Create a single buffer for all */
-		p = ptr = kzalloc(tot_len, kflags);
-		if (!ptr) {
-			ret = -ENOMEM;
-			WL_ERR(("ENOMEM!!\n"));
-			goto out;
-		}
-
-		/* Include the bcm event header */
-		hdr = (bcm_event_hdr_t *)ptr;
-		hdr->event_type = wl_event_to_bcm_event(event_type);
-		hdr->len = len + subhdr_len;
-		ptr += sizeof(bcm_event_hdr_t);
-
-		/* Copy subhdr (if any) */
-		if (subhdr && subhdr_len) {
-			memcpy(ptr, subhdr, subhdr_len);
-			ptr += subhdr_len;
-		}
-
-		/* Copy the data */
-		if (buf && len) {
-			memcpy(ptr, buf, len);
-		}
-
-		ret = nla_put(skb, BCM_GENL_ATTR_MSG, tot_len, p);
-		if (ret != 0) {
-			WL_ERR(("nla_put_string failed\n"));
-			goto out;
-		}
-	}
-
-	if (mcast) {
-		int err = 0;
-		/* finalize the message */
-		genlmsg_end(skb, msg);
-		/* NETLINK_CB(skb).dst_group = 1; */
-		if ((err = genlmsg_multicast(skb, 0, wl_genl_mcast.id, GFP_ATOMIC)) < 0)
-			WL_ERR(("genlmsg_multicast for attr(%d) failed. Error:%d \n",
-				attr_type, err));
-		else
-			WL_DBG(("Multicast msg sent successfully. attr_type:%d len:%d \n",
-				attr_type, tot_len));
-	} else {
-		NETLINK_CB(skb).dst_group = 0; /* Not in multicast group */
-
-		/* finalize the message */
-		genlmsg_end(skb, msg);
-
-		/* send the message back */
-		if (genlmsg_unicast(&init_net, skb, pid) < 0)
-			WL_ERR(("genlmsg_unicast failed\n"));
-	}
-
-out:
-	if (p)
-		kfree(p);
-	if (ret)
-		nlmsg_free(skb);
-
-	return ret;
-}
-
-static s32
-wl_genl_handle_msg(
-	struct sk_buff *skb,
-	struct genl_info *info)
-{
-	struct nlattr *na;
-	u8 *data = NULL;
-
-	WL_DBG(("Enter \n"));
-
-	if (info == NULL) {
-		return -EINVAL;
-	}
-
-	na = info->attrs[BCM_GENL_ATTR_MSG];
-	if (!na) {
-		WL_ERR(("nlattribute NULL\n"));
-		return -EINVAL;
-	}
-
-	data = (char *)nla_data(na);
-	if (!data) {
-		WL_ERR(("Invalid data\n"));
-		return -EINVAL;
-	} else {
-		/* Handle the data */
-		WL_DBG(("Data received from pid (%d) \n", info->snd_pid));
-	}
-
-	return 0;
-}
-#endif /* WL_GENL */
 
 /**
  * Functions for Android WiFi card detection
@@ -1678,7 +1317,7 @@ int wifi_set_power(int on, unsigned long msec)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
 int wifi_get_mac_addr(unsigned char *buf)
 {
-	DHD_TRACE(("%s\n", __FUNCTION__));
+	DHD_ERROR(("%s\n", __FUNCTION__));
 	if (!buf)
 		return -EINVAL;
 	if (wifi_control_data && wifi_control_data->get_mac_addr) {

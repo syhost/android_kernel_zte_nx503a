@@ -20,7 +20,6 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
-#include <linux/timer.h>
 #include <asm/uaccess.h>
 #include <asm/errno.h>
 #include <asm/delay.h>
@@ -35,6 +34,7 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/miscdevice.h>
+#include <linux/hrtimer.h>
 
 
 #ifdef CONFIG_ZTE_DEVICE_INFO_SHOW
@@ -149,7 +149,7 @@
 #define TAOS_ALS_GAIN_8X                1
 #define TAOS_ALS_GAIN_16X               2
 #define TAOS_ALS_GAIN_120X              3
-#define CAL_THRESHOLD   			   "/persist/proxdata/threshold"
+#define CAL_THRESHOLD   "/persist/proxdata/threshold"
 
 
 // ZTEMT ADD by zhubing 2012-2-20 V8000/X501
@@ -186,23 +186,18 @@ static int taos_prox_on(void);
 static int taos_prox_off(void);
 static int taos_prox_calibrate(void);
 static void taos_prox_calibrate_work_func(struct work_struct *work);
-int taos_write_cal_file(char *file_path,unsigned int value);
-int taos_read_cal_value(char *file_path);
-
-//static long taos_config_get(struct taos_cfg *arg);
+static void taos_wakelock_ops(struct taos_wake_lock *wakelock, bool enable);
+static int taos_write_cal_file(char *file_path,unsigned int value);
+static int taos_read_cal_value(char *file_path);
+static enum hrtimer_restart  taos_prox_unwakelock_work_func(struct hrtimer *timer);
 
 
 static dev_t const tmd2772_proximity_dev_t = MKDEV(MISC_MAJOR, 101);
 static dev_t const tmd2772_light_dev_t     = MKDEV(MISC_MAJOR, 102);
 
 
-//struct workqueue_struct *taos_wq;
-//struct work_struct *taos_work;
-//#define DEBUG_IN_KERNTL 
-
 DECLARE_WAIT_QUEUE_HEAD(waitqueue_read);//iVIZM
 
-static unsigned int ReadEnable = 0;//iVIZM
 struct ReadData { //iVIZM
     unsigned int data;
     unsigned int interrupt;
@@ -214,15 +209,6 @@ struct ReadData readdata[2];//iVIZM
 
 // class structure for this device
 struct class *taos_class;
-
-/*
-// module device table
-static struct i2c_device_id taos_idtable[] = {
-    {TAOS_DEVICE_ID, 0},
-    {}
-};
-MODULE_DEVICE_TABLE(i2c, taos_idtable);
-*/
 
 // board and address info   iVIZM
 struct i2c_board_info taos_board_info[] = {
@@ -246,13 +232,10 @@ static int mcount = 0; //iVIZM
 static bool pro_ft = false; //by clli2
 static bool flag_prox_debug = false;
 static bool flag_als_debug  = false;
-static bool flag_irq        = false;
 static bool flag_just_open_light = false;
 static unsigned int als_poll_delay = 1000;
 static unsigned int prox_debug_delay_time = 0;
-static bool flag_lock_wakelock = false;
 u16 status = 0;
-static int ALS_ON = 0;
 static int als_poll_time_mul  = 1;
 static unsigned char reg_addr = 0;
 static bool wakeup_from_sleep = false;
@@ -299,51 +282,55 @@ struct i2c_driver tmd2772_driver = {
 
 // per-device data
 struct taos_data {
-    struct i2c_client *client;
-    struct cdev cdev;
-    unsigned int addr;
-    //struct input_dev *input_dev;//iVIZM
-    //struct work_struct work;//iVIZM
-    struct delayed_work work;//iVIZM
+	struct i2c_client *client;
+	struct cdev cdev;
+	unsigned int addr;
+	//struct input_dev *input_dev;//iVIZM
+	//struct work_struct work;//iVIZM
+	struct delayed_work work;//iVIZM
 	struct work_struct irq_work;
 	struct workqueue_struct *irq_work_queue;
-    struct wake_lock taos_wake_lock;//iVIZM
+	struct taos_wake_lock proximity_wakelock;//iVIZM
 	struct mutex lock;
-    struct device *class_dev;
+	struct device *class_dev;
 	struct delayed_work als_poll_work;
 	struct delayed_work prox_calibrate_work;
+	struct hrtimer  prox_unwakelock_timer;
 	struct input_dev *p_idev;
 	struct input_dev *a_idev;
 
-    struct device *proximity_dev;
-    struct device *light_dev;
-    struct device *gesture_dev;
+	struct device *proximity_dev;
+	struct device *light_dev;
+	struct device *gesture_dev;
 
-    char taos_id;
-    char taos_name[TAOS_ID_NAME_SIZE];
+	char taos_id;
+	char taos_name[TAOS_ID_NAME_SIZE];
 
 	char *prox_name;
 	char *als_name;
 	bool prox_calibrate_flag;
-    bool prox_calibrate_result;
-    int  prox_calibrate_times;
-    int  prox_thres_hi_max;
-    int  prox_thres_lo_min;
-    int  prox_data_max;
+	bool prox_calibrate_result;
+	bool phone_is_sleep;
 
-    char *chip_name;
+	int  prox_calibrate_times;
+	int  prox_thres_hi_max;
+	int  prox_thres_lo_min;
+	int  prox_data_max;
+	int  prox_manual_calibrate_threshold;
+	char *chip_name;
 
 
-    bool prox_on;
-    bool als_on;
-    
+	bool prox_on;
+	bool als_on;
+	bool irq_enabled;
+	bool irq_work_status;
 	bool init;
-    int als_poll_time_mul;
+	int als_poll_time_mul;
 
-    struct semaphore update_lock;
-    char valid;
-    //int working;
-    unsigned long last_updated;
+	struct semaphore update_lock;
+	char valid;
+	//int working;
+	unsigned long last_updated;
 } *taos_datap;
 
 // device configuration by clli2
@@ -351,7 +338,7 @@ struct taos_cfg *taos_cfgp;
 static u32 calibrate_target_param = 300000;
 static u16 als_time_param = 41;
 static u16 scale_factor_param_prox = 6;    
-static u16 scale_factor_param_als = 3;
+static u16 scale_factor_param_als = 8;
 static u16 gain_trim_param = 512;          //NULL
 static u8 filter_history_param = 3;        //NULL
 static u8 filter_count_param = 1;          //NULL
@@ -382,7 +369,6 @@ struct taos_prox_info prox_cal_info[20];
 struct taos_prox_info prox_cur_info;
 struct taos_prox_info *prox_cur_infop = &prox_cur_info;
 static struct timer_list prox_poll_timer;
-static int PROX_ON = 0;
 static int device_released = 0;
 static u16 sat_als = 0;
 static u16 sat_prox = 0;
@@ -421,7 +407,38 @@ struct lux_data *lux_tablep = TritonFN_lux_data;
 static int lux_history[TAOS_FILTER_DEPTH] = {-ENODATA, -ENODATA, -ENODATA};//iVIZM
 
 static int taos_get_data(void);
-#ifdef CONFIG_FEATURE_ZTEMT_SENSORS_LOG_ON
+
+
+static void taos_irq_ops(bool enable, bool flag_sync)
+{
+    if (enable == taos_datap->irq_enabled)
+    {
+        SENSOR_LOG_INFO("doubule %s irq, retern here\n",enable? "enable" : "disable");
+        return;
+    }
+
+    if (enable)
+    {
+        enable_irq(taos_datap->client->irq);
+    }
+    else
+    {
+        if (flag_sync)
+        {
+            disable_irq(taos_datap->client->irq);
+
+        }
+        else
+        {
+            disable_irq_nosync(taos_datap->client->irq);
+        }
+    }
+
+    taos_datap->irq_enabled  = enable;
+    //SENSOR_LOG_INFO("%s irq \n",enable? "enable" : "disable");
+}
+
+
 static ssize_t attr_set_prox_led_pluse_cnt(struct device *dev,
 		struct device_attribute *attr,	const char *buf, size_t size)
 {
@@ -791,6 +808,80 @@ static ssize_t attr_prox_calibrate_start_show(struct device *dev,
 	return strlen(buf);
 }
 
+
+
+
+static ssize_t attr_prox_phone_is_sleep_store(struct device *dev, struct device_attribute *attr, 
+                                            const char *buf, size_t size)
+{
+	struct taos_data *chip = dev_get_drvdata(dev);
+	unsigned int recv;
+    int ret = kstrtouint(buf, 10, &recv);
+    if (ret) 
+    {
+        SENSOR_LOG_ERROR("input error\n");
+        return -EINVAL;
+    }
+
+    mutex_lock(&chip->lock);
+    if (recv==chip->phone_is_sleep)
+    {
+        SENSOR_LOG_INFO("double %s phone_is_sleep\n",recv? "enable" : "false");
+    }
+    else
+    {        
+        chip->phone_is_sleep = recv;
+        SENSOR_LOG_INFO("success %s phone_is_sleep\n",recv? "enable" : "false");
+    }
+    mutex_unlock(&chip->lock);
+	return size;
+}
+
+static ssize_t attr_prox_phone_is_sleep_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct taos_data *chip = dev_get_drvdata(dev);
+    SENSOR_LOG_INFO("prox calibrate is %s\n",chip->phone_is_sleep? "true" : "false");
+	return snprintf(buf, PAGE_SIZE, "prox calibrate is %s\n\n", chip->phone_is_sleep? "true" : "false");
+}
+
+static ssize_t attr_prox_prox_wakelock_store(struct device *dev, struct device_attribute *attr, 
+                                            const char *buf, size_t size)
+{
+	struct taos_data *chip = dev_get_drvdata(dev);
+	unsigned int recv;
+    int ret = kstrtouint(buf, 10, &recv);
+    if (ret) 
+    {
+        SENSOR_LOG_ERROR("input error\n");
+        return -EINVAL;
+    }
+
+    mutex_lock(&chip->lock);
+    if (recv)
+    {
+        taos_wakelock_ops(&(chip->proximity_wakelock),true);
+    }
+    else
+    {       
+    	 //cancel_delayed_work_sync(&chip->prox_unwakelock_work);
+	hrtimer_cancel(&taos_datap->prox_unwakelock_timer);
+	taos_wakelock_ops(&(chip->proximity_wakelock),false);
+    }
+    mutex_unlock(&chip->lock);
+	return size;
+}
+
+static ssize_t attr_prox_prox_wakelock_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct taos_data *chip = dev_get_drvdata(dev);
+    SENSOR_LOG_INFO("proximity_wakelock is %s\n",chip->proximity_wakelock.locked ? "true" : "false");
+	return snprintf(buf, PAGE_SIZE, "proximity_wakelock is %s\n",chip->proximity_wakelock.locked ? "true" : "false");
+}
+
+
+//als
 static ssize_t attr_set_als_debug(struct device *dev,
 		struct device_attribute *attr,	const char *buf, size_t size)
 {
@@ -840,13 +931,11 @@ static ssize_t attr_set_irq(struct device *dev,
 
     if (val)
     {
-        enable_irq(taos_cfgp->als_ps_int);
-        flag_irq = true;
+        taos_irq_ops(true, true);
     }
     else
     {       
-        disable_irq(taos_cfgp->als_ps_int);
-        flag_irq = false;
+        taos_irq_ops(false, true);
     }
 
     SENSOR_LOG_ERROR("exit\n");
@@ -856,9 +945,9 @@ static ssize_t attr_set_irq(struct device *dev,
 static ssize_t attr_get_irq(struct device *dev,
 		struct device_attribute *attr,	char *buf)
 {
-    if (NULL!=taos_cfgp)
+    if (NULL!=taos_datap)
     {
-        return sprintf(buf, "flag_irq is %s\n", flag_irq? "true" : "false");
+        return sprintf(buf, "flag_irq is %s\n", taos_datap->irq_enabled? "true" : "false");
     }
     else
     {       
@@ -994,36 +1083,39 @@ static ssize_t attr_prox_thres_store(struct device *dev,
 		return -EINVAL;
 	mutex_lock(&taos_datap->lock);
 
-	if (value==1){
+	if (value==1)
+    {
    		if( (rc=taos_read_cal_value(CAL_THRESHOLD))<0)
-   			{
-			mutex_unlock(&taos_datap->lock);
-			return -EINVAL;
-   			}
+        {
+            mutex_unlock(&taos_datap->lock);
+            return -EINVAL;
+        }
 		else
-			{
-				if(rc > (taos_datap->prox_thres_lo_min))
-					{
-					taos_datap->prox_calibrate_flag = false;
-			             taos_cfgp->prox_threshold_hi= rc;
-			             taos_cfgp->prox_threshold_lo  = rc - 80;
-					input_report_rel(taos_datap->p_idev, REL_Y, taos_cfgp->prox_threshold_hi);
-					input_report_rel(taos_datap->p_idev, REL_Z, taos_cfgp->prox_threshold_lo);
-					input_sync(taos_datap->p_idev);
-					SENSOR_LOG_ERROR("prox_th_high  = %d\n",taos_cfgp->prox_threshold_hi);
-			    		SENSOR_LOG_ERROR("prox_th_low   = %d\n",taos_cfgp->prox_threshold_lo);
-					}
+		{
+			if(rc > (taos_datap->prox_thres_lo_min))
+            		{
+			taos_datap->prox_calibrate_flag = false;
+			taos_datap->prox_manual_calibrate_threshold =rc;
+			taos_cfgp->prox_threshold_hi= rc;
+			taos_cfgp->prox_threshold_lo  = rc - 80;
+			input_report_rel(taos_datap->p_idev, REL_Y, taos_cfgp->prox_threshold_hi);
+			input_report_rel(taos_datap->p_idev, REL_Z, taos_cfgp->prox_threshold_lo);
+			input_sync(taos_datap->p_idev);
+			SENSOR_LOG_ERROR("prox_th_high  = %d\n",taos_cfgp->prox_threshold_hi);
+			SENSOR_LOG_ERROR("prox_th_low   = %d\n",taos_cfgp->prox_threshold_lo);
+           		 }
 
-			}
+		}
 	}
-	else{	
+	else
+    {	
 		mutex_unlock(&taos_datap->lock);
 		return -EINVAL;
 	}
 
-		mutex_unlock(&taos_datap->lock);
+	mutex_unlock(&taos_datap->lock);
 
-		return size;
+	return size;
 }
 static ssize_t attr_set_als_scale_factor_param_prox(struct device *dev,
 		struct device_attribute *attr,	const char *buf, size_t size)
@@ -1124,7 +1216,7 @@ static ssize_t attr_get_prox_threshold_high(struct device *dev,
 {
     if (NULL!=taos_cfgp)
     {
-        return sprintf(buf, "prox_threshold_hi is %d\n", taos_cfgp->prox_threshold_hi);
+        return sprintf(buf, "%d", taos_cfgp->prox_threshold_hi);
     }
     else
     {       
@@ -1133,12 +1225,37 @@ static ssize_t attr_get_prox_threshold_high(struct device *dev,
 	return strlen(buf);
 }
 
+static ssize_t attr_set_prox_threshold_high(struct device *dev,
+		struct device_attribute *attr,	const char *buf, size_t size)
+{
+    unsigned long val;
+    SENSOR_LOG_ERROR("enter\n");
+    if (strict_strtoul(buf, 10, &val))
+    {
+        return -EINVAL;
+    }
+
+    if (NULL!=taos_cfgp)
+    {
+        taos_cfgp->prox_threshold_hi = val;
+    }
+    else
+    {
+        SENSOR_LOG_ERROR("taos_cfgp is NULL\n");
+    }
+
+    SENSOR_LOG_ERROR("exit\n");
+	return size;
+}
+
+
+
 static ssize_t attr_get_prox_threshold_low(struct device *dev,
 		struct device_attribute *attr,	char *buf)
 {
     if (NULL!=taos_cfgp)
     {
-        return sprintf(buf, "prox_threshold_lo is %d\n", taos_cfgp->prox_threshold_lo);
+        return sprintf(buf, "%d", taos_cfgp->prox_threshold_lo);
     }
     else
     {       
@@ -1146,6 +1263,30 @@ static ssize_t attr_get_prox_threshold_low(struct device *dev,
     }
 	return strlen(buf);
 }
+
+static ssize_t attr_set_prox_threshold_low(struct device *dev,
+		struct device_attribute *attr,	const char *buf, size_t size)
+{
+    unsigned long val;
+    SENSOR_LOG_ERROR("enter\n");
+    if (strict_strtoul(buf, 10, &val))
+    {
+        return -EINVAL;
+    }
+
+    if (NULL!=taos_cfgp)
+    {
+        taos_cfgp->prox_threshold_lo = val;
+    }
+    else
+    {
+        SENSOR_LOG_ERROR("taos_cfgp is NULL\n");
+    }
+
+    SENSOR_LOG_ERROR("exit\n");
+	return size;
+}
+
 
 static ssize_t attr_set_prox_offset(struct device *dev,
 		struct device_attribute *attr,	const char *buf, size_t size)
@@ -1267,7 +1408,19 @@ static ssize_t attr_prox_data_max(struct device *dev,
 	return strlen(buf);
 }
 
-#endif
+static ssize_t attr_prox_manual_calibrate_threshold(struct device *dev,
+		struct device_attribute *attr,	char *buf)
+{
+    if (NULL!=taos_datap)
+    {
+        return sprintf(buf, "%d", taos_datap->prox_manual_calibrate_threshold);
+    }
+    else
+    {       
+        sprintf(buf, "taos_cfgp is NULL\n");
+    }
+	return strlen(buf);
+}
 
 static ssize_t attr_set_reg_addr(struct device *dev,
 		struct device_attribute *attr,	const char *buf, size_t size)
@@ -1471,11 +1624,10 @@ static ssize_t attr_prox_enable_store(struct device *dev,
 {
 	struct taos_data *chip = dev_get_drvdata(dev);
 	bool value;
-    SENSOR_LOG_INFO("enter\n");
-
 	if (strtobool(buf, &value))
 		return -EINVAL;
     mutex_lock(&chip->lock);
+    SENSOR_LOG_INFO("enter\n");
 
 	if (value)
     {
@@ -1485,8 +1637,8 @@ static ssize_t attr_prox_enable_store(struct device *dev,
     {
         taos_prox_off();
     }
-    mutex_unlock(&chip->lock);
     SENSOR_LOG_INFO("exit\n");
+    mutex_unlock(&chip->lock);
 
 	return size;
 }
@@ -1505,11 +1657,11 @@ static ssize_t attr_prox_init_store(struct device *dev,
 {
 	int value =1;
 	int ret =0,err=1;
-    SENSOR_LOG_INFO("enter\n");
 	ret = kstrtouint(buf, 10, &value);
 	if (ret)
 		return -EINVAL;
-       mutex_lock(&taos_datap->lock);
+    mutex_lock(&taos_datap->lock);
+    SENSOR_LOG_INFO("enter\n");
 
 	if (value ==1)
     {
@@ -1523,40 +1675,31 @@ static ssize_t attr_prox_init_store(struct device *dev,
 				mutex_unlock(&taos_datap->lock);
 				return -EINVAL;
 			}
-           // ret = schedule_delayed_work(&taos_datap->prox_calibrate_work,0);
            	taos_datap->prox_calibrate_flag = true;
 		}
-		else 
-        {
-            if (ret==0)
-            {
-             //   ret = schedule_delayed_work(&taos_datap->prox_calibrate_work,0);
-               	taos_datap->prox_calibrate_flag = true;
-    		    SENSOR_LOG_ERROR("tmg399x_prox_calibrate==1\n");
-    		}
-		    else 
-            {
-                if(ret > (taos_datap->prox_thres_lo_min))
-                {
-                    taos_datap->prox_calibrate_flag = false;
-                    taos_cfgp->prox_threshold_hi = ret;
-                    taos_cfgp->prox_threshold_lo = ret - 80;
-                    input_report_rel(taos_datap->p_idev, REL_Y, taos_cfgp->prox_threshold_hi);
-                    input_report_rel(taos_datap->p_idev, REL_Z, taos_cfgp->prox_threshold_lo);
-                    input_sync(taos_datap->p_idev);
-                    SENSOR_LOG_ERROR("tmg399x_prox_init> 0\n");
-        		}
-            }
-        }
+		else if (ret==0){
+           	taos_datap->prox_calibrate_flag = true;
+		    SENSOR_LOG_ERROR("tmg399x_prox_calibrate==1\n");
+		}
+		else if(ret > (taos_datap->prox_thres_lo_min)){
+		taos_datap->prox_calibrate_flag = false;
+		taos_datap->prox_manual_calibrate_threshold =ret;
+        taos_cfgp->prox_threshold_hi = ret;
+        taos_cfgp->prox_threshold_lo  = ret - 80;
+		input_report_rel(taos_datap->p_idev, REL_Y, taos_cfgp->prox_threshold_hi);
+		input_report_rel(taos_datap->p_idev, REL_Z, taos_cfgp->prox_threshold_lo);
+		input_sync(taos_datap->p_idev);
+		SENSOR_LOG_ERROR("tmg399x_prox_init> 0\n");
+		}
 	}
-	else 
+	else
     {
 		SENSOR_LOG_ERROR("ERROR=tmg399x_prox_init_store\n");
 		mutex_unlock(&taos_datap->lock);
 		return -EINVAL;
 	}
-    mutex_unlock(&taos_datap->lock);
     SENSOR_LOG_INFO("exit\n");
+    mutex_unlock(&taos_datap->lock);
 
 	return size;
 }
@@ -1583,19 +1726,25 @@ static struct device_attribute attrs_prox[] = {
     __ATTR(prox_led_strength_level,        0644,   attr_get_prox_led_strength_level,           attr_set_prox_led_strength_level),
     __ATTR(prox_debug_delay,               0644,   attr_get_prox_debug_delay,                  attr_set_prox_debug_delay),   
     __ATTR(prox_calibrate,                 0644,   NULL,                                       attr_set_prox_calibrate),
-    __ATTR(prox_threshold_high,            0644,   attr_get_prox_threshold_high,               NULL),
-    __ATTR(prox_threshold_low,             0644,   attr_get_prox_threshold_low,                NULL),
+    __ATTR(prox_threshold_high,            0644,   attr_get_prox_threshold_high,               attr_set_prox_threshold_high),
+    __ATTR(prox_threshold_low,             0644,   attr_get_prox_threshold_low,                attr_set_prox_threshold_low),
     __ATTR(prox_offset,                    0644,   attr_get_prox_offset,                       attr_set_prox_offset),
     __ATTR(prox_value,                     0644,   attr_get_prox_value,                        NULL),
     __ATTR(prox_calibrate_result,          0640,   attr_prox_calibrate_result_show,            NULL), 
-    __ATTR(prox_thres_high,                0640,   attr_prox_thres_high_show,                  attr_prox_thres_high_store),
-    __ATTR(prox_thres_low,                 0640,   attr_prox_thres_low_show,                   attr_prox_thres_low_store),
+    __ATTR(prox_thres_param_high,          0640,   attr_prox_thres_high_show,                  attr_prox_thres_high_store),
+    __ATTR(prox_thres_param_low,           0640,   attr_prox_thres_low_show,                   attr_prox_thres_low_store),
     __ATTR(prox_thres,                     0640,   attr_prox_thres_show,                       attr_prox_thres_store),
     __ATTR(prox_debug,                     0640,   attr_prox_debug_show,                       attr_prox_debug_store),
     __ATTR(prox_calibrate_start,           0640,   attr_prox_calibrate_start_show,             attr_prox_debug_store),
-    __ATTR(prox_thres_max,                 0640,   attr_prox_thres_hi_max,                     NULL), 
-    __ATTR(prox_thres_min,                 0640,   attr_prox_thres_lo_min,                     NULL), 
+    __ATTR(prox_thres_max,                 0644,   attr_prox_thres_hi_max,                     NULL), 
+    __ATTR(prox_thres_min,                 0644,   attr_prox_thres_lo_min,                     NULL), 
     __ATTR(prox_data_max,                  0640,   attr_prox_data_max,                         NULL), 
+    __ATTR(prox_manual_calibrate_threshold,0644,   attr_prox_manual_calibrate_threshold,       NULL), 
+
+
+    __ATTR(prox_phone_is_sleep,            0640,   attr_prox_phone_is_sleep_show,              attr_prox_phone_is_sleep_store),
+    __ATTR(prox_wakelock,                  0640,   attr_prox_prox_wakelock_show,               attr_prox_prox_wakelock_store),
+
     __ATTR(reg_addr,                       0644,   attr_get_reg_addr,                          attr_set_reg_addr),
     __ATTR(reg_data,                       0644,   attr_get_reg_data,                          attr_set_reg_data),
     __ATTR(irq_status,                     0644,   attr_get_irq,                               attr_set_irq),       
@@ -1634,27 +1783,30 @@ error:
 	return -1;
 }
 
-static void wake_lock_ops(bool enable)
+
+static void taos_wakelock_ops(struct taos_wake_lock *wakelock, bool enable)
 {
+    if (enable == wakelock->locked)
+    {
+        SENSOR_LOG_INFO("doubule %s %s, retern here\n",enable? "lock" : "unlock",wakelock->name);
+        return;
+    }
+
     if (enable)
     {
-        if (false == flag_lock_wakelock)
-        {
-            flag_lock_wakelock = true;
-            wake_lock(&taos_datap->taos_wake_lock);
-        }
+        wake_lock(&wakelock->lock);
     }
     else
     {
-        if (true == flag_lock_wakelock)
-        {  
-            flag_lock_wakelock = false;
-            wake_unlock(&taos_datap->taos_wake_lock);
-        }
+        wake_unlock(&wakelock->lock);
     }
+
+    wakelock->locked = enable;
+
+    SENSOR_LOG_INFO("%s %s \n",enable? "lock" : "unlock",wakelock->name);
 }
 
-int taos_write_cal_file(char *file_path,unsigned int value)
+static int taos_write_cal_file(char *file_path,unsigned int value)
 {
     struct file *file_p;
     char write_buf[10];
@@ -1694,7 +1846,7 @@ error:
 }
 
 
-int taos_read_cal_value(char *file_path)
+static int taos_read_cal_value(char *file_path)
 {
     struct file *file_p;
     int vfs_read_retval = 0;
@@ -1767,23 +1919,32 @@ static void taos_irq_work_func(struct work_struct * work) //iVIZM
         mdelay(20);
     }
     taos_interrupts_clear();
-    msleep(100);
-    wake_lock_ops(false);
-    enable_irq(taos_cfgp->als_ps_int);
-    flag_irq = true;
+
+    hrtimer_cancel(&taos_datap->prox_unwakelock_timer);
+    taos_datap->irq_work_status = false;
+   // SENSOR_LOG_INFO("########  taos_irq_work_func enter   hrtimer_start #########\n");
+    hrtimer_start(&taos_datap->prox_unwakelock_timer, ktime_set(3, 0), HRTIMER_MODE_REL);
+
+   //  schedule_delayed_work(&taos_datap->prox_unwakelock_work, msecs_to_jiffies(1000));
+	
+    taos_irq_ops(true, true);
     SENSOR_LOG_INFO(" retry_times = %d\n",retry_times);
     mutex_unlock(&taos_datap->lock);
 }
 
 static irqreturn_t taos_irq_handler(int irq, void *dev_id) //iVIZM
 {
+    mutex_lock(&taos_datap->lock);
     SENSOR_LOG_INFO("enter\n");
-    disable_irq_nosync(taos_cfgp->als_ps_int);
-    flag_irq = false;
-    wake_lock_ops(true);
-    queue_work(taos_datap->irq_work_queue, &taos_datap->irq_work);
+    taos_datap->irq_work_status = true;
+    taos_irq_ops(false, false);
+    taos_wakelock_ops(&(taos_datap->proximity_wakelock), true);
+    if (0==queue_work(taos_datap->irq_work_queue, &taos_datap->irq_work))
+    {
+        SENSOR_LOG_INFO("schedule_work failed!\n");
+    }
     SENSOR_LOG_INFO("exit\n");
-
+    mutex_unlock(&taos_datap->lock);
     return IRQ_HANDLED;
 }
 
@@ -1791,26 +1952,16 @@ static int taos_get_data(void)//iVIZM
 {
     int ret = 0;
 
-    status = i2c_smbus_read_byte_data(taos_datap->client, (TAOS_TRITON_CMD_REG | TAOS_TRITON_STATUS));
-
-    if((status & 0x20) == 0x20) 
+    ret = i2c_smbus_read_byte_data(taos_datap->client, (TAOS_TRITON_CMD_REG | TAOS_TRITON_STATUS));
+    
+    if (ret < 0)
     {
+        SENSOR_LOG_ERROR("read TAOS_TRITON_STATUS failed\n");
+        return ret;
+    }
+    else
+    { 
         ret = taos_prox_threshold_set();
-        if(ret >= 0)
-        {
-            ReadEnable = 1;
-        }
-    } 
-	else 
-    {
-        if((status & 0x10) == 0x10) 
-        {   
-
-        } 
-    	else
-    	{
-            SENSOR_LOG_ERROR("TAOS:================= status = %d\n",status);
-    	}
     }
     return ret;
 }
@@ -1906,17 +2057,7 @@ static int taos_prox_threshold_set(void)//iVIZM
     }
     cleardata = chdata[0] + chdata[1]*256;
     proxdata = chdata[4] + chdata[5]*256;
-#ifdef DEBUG_IN_KERNTL
 
-    input_report_rel(taos_datap->p_idev, REL_X, taos_datap->prx_inf.raw);
-    //emmit make error
-    PROX_ON = 0;
-	data = 0;
-	ret = 0;
-	pro_buf[0] = 0x0;
-    SENSOR_LOG_INFO( "----------%s: %d: proxdata = %d",__func__,__LINE__,proxdata);
-    return 0;
-#else 
 	if (pro_ft || flag_prox_debug)
     {
         pro_buf[0] = 0xff;
@@ -1935,35 +2076,33 @@ static int taos_prox_threshold_set(void)//iVIZM
 
         if (pro_ft)
         {
-            SENSOR_LOG_INFO( "----------%s: %d: init the prox threshold",__func__,__LINE__);
+            SENSOR_LOG_INFO( "init the prox threshold");
         }
 
         if (flag_prox_debug)
         {
             mdelay(prox_debug_delay_time);
-            SENSOR_LOG_INFO( "----------%s: %d: proxdata = %d",__func__,__LINE__,proxdata);
-	     input_report_rel(taos_datap->p_idev, REL_MISC, proxdata);
+            SENSOR_LOG_INFO( "proxdata = %d",proxdata);
+	        input_report_rel(taos_datap->p_idev, REL_MISC, proxdata);
 
         }
-        
 		pro_ft = false;
-                
 	} 
     else 
     {
-        if (proxdata < taos_cfgp->prox_threshold_lo ) 
-        { //10cm
+        if (proxdata < taos_cfgp->prox_threshold_lo) 
+        {   //FAR
             pro_buf[0] = 0x0;
             pro_buf[1] = 0x0;
             pro_buf[2] = taos_cfgp->prox_threshold_hi & 0x0ff;
             pro_buf[3] = taos_cfgp->prox_threshold_hi >> 8;
-    		SENSOR_LOG_INFO( "----------%s: %d: Far!!! proxdata = %d\n",__func__,__LINE__,proxdata);
+    		SENSOR_LOG_INFO( "Far!!! proxdata = %d\n",proxdata);
             input_report_rel(taos_datap->p_idev, REL_X, proxdata);
         } 
         else 
         {
                 if (proxdata > taos_cfgp->prox_threshold_hi)
-                { //3cm
+                {   //NEAR
                     if (cleardata > ((sat_als*80)/100))
                     {
                     	printk(KERN_ERR "TAOS: %u <= %u*0.8 int data\n",proxdata,sat_als);
@@ -1974,12 +2113,37 @@ static int taos_prox_threshold_set(void)//iVIZM
                     pro_buf[1] = taos_cfgp->prox_threshold_lo >> 8;
                     pro_buf[2] = 0xff;
                     pro_buf[3] = 0xff;
-                    SENSOR_LOG_INFO( "----------%s: %d: Near!!! proxdata = %d\n",__func__,__LINE__,proxdata);
+                    SENSOR_LOG_INFO("Near!!! proxdata = %d\n",proxdata);
                     input_report_rel(taos_datap->p_idev, REL_X, proxdata);
                 }
                 else
                 {
-                    SENSOR_LOG_ERROR("TAOS:================= proxdata = %d,not in range\n",proxdata);	
+                    if( (taos_cfgp->prox_threshold_hi-proxdata) > (proxdata-taos_cfgp->prox_threshold_lo))
+                    {
+                        //FAR
+                        pro_buf[0] = 0x0;
+                        pro_buf[1] = 0x0;
+                        pro_buf[2] = taos_cfgp->prox_threshold_hi & 0x0ff;
+                        pro_buf[3] = taos_cfgp->prox_threshold_hi >> 8;
+                		SENSOR_LOG_INFO( "Far!!! proxdata = %d\n",proxdata);
+                        input_report_rel(taos_datap->p_idev, REL_X, proxdata);
+                    }
+                    else
+                    {
+                        //NEAR
+                        if (cleardata > ((sat_als*80)/100))
+                        {
+                        	printk(KERN_ERR "TAOS: %u <= %u*0.8 int data\n",proxdata,sat_als);
+                        	msleep(100);
+                            return -ENODATA;
+                        }
+                        pro_buf[0] = taos_cfgp->prox_threshold_lo & 0x0ff;
+                        pro_buf[1] = taos_cfgp->prox_threshold_lo >> 8;
+                        pro_buf[2] = 0xff;
+                        pro_buf[3] = 0xff;
+                        SENSOR_LOG_INFO( "Near!!! proxdata = %d\n",proxdata);
+                        input_report_rel(taos_datap->p_idev, REL_X, proxdata);
+                    }
                 }
             }
     }
@@ -1996,7 +2160,6 @@ static int taos_prox_threshold_set(void)//iVIZM
     }
 
     return ret;
-#endif
 }
 
 // driver init
@@ -2034,7 +2197,12 @@ static void tmd2772_data_init(void)
     taos_datap->prox_data_max     = 1023;
     taos_datap->prox_calibrate_times = 10;
     taos_datap->prox_calibrate_flag = true;//true :auto_calibrate,false :manual_calibrate
-
+    taos_datap->prox_manual_calibrate_threshold = 0;
+    taos_datap->proximity_wakelock.name = "proximity-wakelock";
+    taos_datap->proximity_wakelock.locked = false;
+    taos_datap->phone_is_sleep = false;
+    taos_datap->irq_work_status = false;
+    taos_datap->irq_enabled = true;
 }
 
 
@@ -2081,21 +2249,9 @@ static int __devinit tmd2772_probe(struct i2c_client *clientp, const struct i2c_
 
 	sema_init(&taos_datap->update_lock,1);
 	mutex_init(&(taos_datap->lock));
-    wake_lock_init(&taos_datap->taos_wake_lock, WAKE_LOCK_SUSPEND, "als-ps-wakelock");
+    wake_lock_init(&taos_datap->proximity_wakelock.lock, WAKE_LOCK_SUSPEND, "proximity-wakelock");
 
     tmd2772_data_init();
-    
-/*
-    taos_datap->input_dev->name = TAOS_INPUT_NAME;
-    taos_datap->input_dev->id.bustype = BUS_I2C;
-    _set_bit(EV_ABS,taos_datap->input_dev->evbit);
-    input_set_abs_params(taos_datap->input_dev, ABS_DISTANCE, 0, 65535, 0, 0);
-    input_set_abs_params(taos_datap->input_dev, ABS_MISC, 0, 65535, 0, 0);
-    input_set_abs_params(taos_datap->input_dev, ABS_VOLUME, 0, 65535, 0, 0);
-    input_set_abs_params(taos_datap->input_dev, ABS_X, 0, 65535, 0, 0);
-    input_set_abs_params(taos_datap->input_dev, ABS_Y, 0, 65535, 0, 0);
-    ret = input_register_device(taos_datap->input_dev);
-    */
 
     for (i = 0; i < TAOS_MAX_DEVICE_REGS; i++) 
     {
@@ -2193,20 +2349,22 @@ static int __devinit tmd2772_probe(struct i2c_client *clientp, const struct i2c_
 
     ret = gpio_tlmm_config(GPIO_CFG(ALS_PS_GPIO, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 
-    taos_cfgp->als_ps_int = gpio_to_irq(ALS_PS_GPIO);	
-    ret = request_irq(taos_cfgp->als_ps_int,taos_irq_handler, IRQ_TYPE_EDGE_FALLING, "taos_irq",taos_datap);//iVIZM
+    taos_datap->client->irq = gpio_to_irq(ALS_PS_GPIO);
+
+	ret = request_threaded_irq(taos_datap->client->irq, NULL, &taos_irq_handler, IRQF_TRIGGER_FALLING | IRQF_ONESHOT, "taos_irq", taos_datap);
     if (ret != 0) 
     {
         gpio_free(ALS_PS_GPIO);
         return(ret);
     }
-    
-    disable_irq(taos_cfgp->als_ps_int);
-    flag_irq = false;
+
+    taos_irq_ops(false, true);
     INIT_DELAYED_WORK(&taos_datap->als_poll_work, taos_als_poll_work_func);
     INIT_DELAYED_WORK(&taos_datap->prox_calibrate_work, taos_prox_calibrate_work_func);
-
-
+  //  INIT_DELAYED_WORK(&taos_datap->prox_unwakelock_work, taos_prox_unwakelock_work_func);
+    hrtimer_init(&taos_datap->prox_unwakelock_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+    ( taos_datap->prox_unwakelock_timer).function = taos_prox_unwakelock_work_func ;
+   // hrtimer_start(&taos_datap->prox_unwakelock_timer, ktime_set(0, 0), HRTIMER_MODE_REL);
     proximity_class = class_create(THIS_MODULE, "proximity");
     light_class     = class_create(THIS_MODULE, "light");
 
@@ -2272,6 +2430,7 @@ static int __devinit tmd2772_probe(struct i2c_client *clientp, const struct i2c_
     set_bit(REL_X,  taos_datap->a_idev->relbit);
     set_bit(REL_Y,  taos_datap->a_idev->relbit);
 
+
 	//chip->a_idev->open = tmg399x_als_idev_open;
 	//chip->a_idev->close = tmg399x_als_idev_close;
 	dev_set_drvdata(&taos_datap->a_idev->dev, taos_datap);
@@ -2320,10 +2479,10 @@ create_proximity_dev_failed:
 static int taos_resume(struct i2c_client *client) {
 	int ret = 0;
     SENSOR_LOG_INFO("enter\n");
-	if(1 == PROX_ON)
+	if(1 == taos_datap->prox_on)
     {
         SENSOR_LOG_INFO( "----------%s: %d: disable irq wakeup\n",__func__,__LINE__);
-		ret = disable_irq_wake(taos_cfgp->als_ps_int);
+		ret = disable_irq_wake(taos_datap->client->irq);
 	}
     if(ret < 0)
 		printk(KERN_ERR "TAOS: disable_irq_wake failed\n");
@@ -2332,13 +2491,14 @@ static int taos_resume(struct i2c_client *client) {
 }
 
 //suspend  
-static int taos_suspend(struct i2c_client *client, pm_message_t mesg) {
+static int taos_suspend(struct i2c_client *client, pm_message_t mesg) 
+{
 	int ret = 0;
     SENSOR_LOG_INFO("enter\n");
-	if(1 == PROX_ON)
+	if(1 == taos_datap->prox_on)
     {
         SENSOR_LOG_INFO( "----------%s: %d: enable irq wakeup\n",__func__,__LINE__);
-       	ret = enable_irq_wake(taos_cfgp->als_ps_int);
+       	ret = enable_irq_wake(taos_datap->client->irq);
     }
 	if(ret < 0)
     {
@@ -2569,14 +2729,28 @@ static int taos_als_gain_set(unsigned als_gain)
 
 static void taos_als_poll_work_func(struct work_struct *work)
 {
-    taos_als_get_data();
-	schedule_delayed_work(&taos_datap->als_poll_work, msecs_to_jiffies(als_poll_time_mul*als_poll_delay));
+
+	   	 taos_als_get_data();
+		schedule_delayed_work(&taos_datap->als_poll_work, msecs_to_jiffies(als_poll_time_mul*als_poll_delay));
+
 }
 
 static void taos_prox_calibrate_work_func(struct work_struct *work)
 {
+
 		taos_prox_calibrate();
+	
 }
+
+static enum hrtimer_restart  taos_prox_unwakelock_work_func(struct hrtimer *timer)
+{	 
+	SENSOR_LOG_INFO("######## taos_prox_unwakelock_timer_func #########\n");
+	if(false == taos_datap->irq_work_status )
+	taos_wakelock_ops(&(taos_datap->proximity_wakelock),false);
+	return HRTIMER_NORESTART;
+	
+}
+
 static int taos_sensors_als_poll_on(void) 
 {
     int  ret = 0, i = 0;
@@ -2589,7 +2763,7 @@ static int taos_sensors_als_poll_on(void)
         lux_history[i] = -ENODATA;
     }
 
-    if (PROX_ON)
+    if (taos_datap->prox_on)
     {
         if ((ret = (i2c_smbus_write_byte_data(taos_datap->client, (TAOS_TRITON_CMD_REG | TAOS_TRITON_ALS_TIME), TAOS_ALS_ADC_TIME_WHEN_PROX_ON))) < 0) 
         {
@@ -2628,11 +2802,11 @@ static int taos_sensors_als_poll_on(void)
         return (ret);
     }
 
-	schedule_delayed_work(&taos_datap->als_poll_work, msecs_to_jiffies(500));
+	schedule_delayed_work(&taos_datap->als_poll_work, msecs_to_jiffies(200));
 
     flag_just_open_light = true;
 
-    ALS_ON = 1;
+    taos_datap->als_on = true;
 
     taos_update_sat_als();
 
@@ -2655,7 +2829,7 @@ static int taos_sensors_als_poll_off(void)
 
     //SENSOR_LOG_INFO("reg[0x00] = 0x%02X\n",reg_val);
 
-    if ((reg_val & TAOS_TRITON_CNTL_PROX_DET_ENBL) == 0x00 && (0 == PROX_ON)) 
+    if ((reg_val & TAOS_TRITON_CNTL_PROX_DET_ENBL) == 0x00 && (0 == taos_datap->prox_on)) 
     {        
         SENSOR_LOG_INFO("TAOS_TRITON_CNTL_PROX_DET_ENBL = 0\n");
         reg_val = 0x00;
@@ -2673,7 +2847,8 @@ static int taos_sensors_als_poll_off(void)
        return (ret);
     }
 
-    ALS_ON = 0;
+    taos_datap->als_on = false;
+
     cancel_delayed_work_sync(&taos_datap->als_poll_work);
 
     taos_update_sat_als();
@@ -2687,12 +2862,12 @@ static int taos_prox_on(void)
     int  ret = 0;
     u8 reg_cntrl = 0, i = 0 ,j = 0;
 
-    PROX_ON = 1;
+    taos_datap->prox_on = 1;
     als_poll_time_mul = 2;
 
     SENSOR_LOG_INFO("######## TAOS IOCTL PROX ON  ######## \n");
 
-    if (ALS_ON)
+    if (true==taos_datap->als_on)
     {
         if ((ret = (i2c_smbus_write_byte_data(taos_datap->client, (TAOS_TRITON_CMD_REG|0x01), TAOS_ALS_ADC_TIME_WHEN_PROX_ON))) < 0) 
         {
@@ -2763,11 +2938,9 @@ static int taos_prox_on(void)
             }
             prox_sum += prox_cal_info[i].prox_data;
             if (prox_cal_info[i].prox_data > prox_max)
-            {
                 prox_max = prox_cal_info[i].prox_data;
-            }
             mdelay(20);
-         }
+        }
 
         prox_mean = prox_sum/5;
         if (j==0)
@@ -2792,11 +2965,10 @@ static int taos_prox_on(void)
             input_report_rel(taos_datap->p_idev, REL_Y, taos_cfgp->prox_threshold_hi);
             input_report_rel(taos_datap->p_idev, REL_Z, taos_cfgp->prox_threshold_lo);
             input_sync(taos_datap->p_idev);
-        }
+    	}
     }
     taos_prox_threshold_set();   
-    enable_irq(taos_cfgp->als_ps_int);
-    flag_irq = true;
+    taos_irq_ops(true, true);
     return (ret);
 }
 
@@ -2805,26 +2977,34 @@ static int taos_prox_off(void)
 {    
     int ret = 0;
     SENSOR_LOG_INFO("########  TAOS IOCTL PROX OFF  ########\n");
+
+    if (true == (taos_datap->proximity_wakelock).locked)
+    {      
+    	  hrtimer_cancel(&taos_datap->prox_unwakelock_timer);
+        taos_wakelock_ops(&(taos_datap->proximity_wakelock), false);
+    }
+
     if ((ret = (i2c_smbus_write_byte_data(taos_datap->client, (TAOS_TRITON_CMD_REG | TAOS_TRITON_CNTRL), 0x00))) < 0) 
     {
         printk(KERN_ERR "TAOS: i2c_smbus_write_byte_data failed in ioctl als_off\n");
         return (ret);
     }
 
-    PROX_ON = 0;
+    taos_datap->prox_on = 0;
     als_poll_time_mul = 1;
 
-	if (ALS_ON == 1) 
+	if (true == taos_datap->als_on) 
     {
         taos_sensors_als_poll_on();
 	}
 
    // cancel_work_sync(&taos_datap->irq_work);
-    if (true == flag_irq)
+    if (true == taos_datap->irq_enabled)
     {
-        disable_irq(taos_cfgp->als_ps_int);
-        flag_irq = false;
+        taos_irq_ops(false, true);
     }
+
+
     return (ret);
 }
 

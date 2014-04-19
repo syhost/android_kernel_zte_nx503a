@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: wl_cfg80211.h 394786 2013-04-03 19:51:24Z $
+ * $Id: wl_cfg80211.h 389705 2013-03-07 20:04:22Z $
  */
 
 #ifndef _wl_cfg80211_h_
@@ -138,7 +138,8 @@ do {									\
 #define WL_SCAN_JOIN_PASSIVE_DWELL_TIME_MS 	400
 #define WL_AF_TX_MAX_RETRY 	5
 
-#define WL_AF_SEARCH_TIME_MAX           410
+#define WL_AF_SEARCH_TIME_MAX           450
+
 #define WL_AF_TX_EXTRA_TIME_MAX         200
 
 #define WL_SCAN_TIMER_INTERVAL_MS	8000 /* Scan timeout */
@@ -451,50 +452,6 @@ struct parsed_ies {
 	u32 wpa2_ie_len;
 };
 
-#ifdef WL_SDO
-/* Service discovery */
-typedef struct {
-	uint8	transaction_id; /* Transaction ID */
-	uint8   protocol;       /* Service protocol type */
-	uint16  query_len;      /* Length of query */
-	uint16  response_len;   /* Length of response */
-	uint8   qrbuf[1];
-} wl_sd_qr_t;
-
-typedef struct {
-	uint16	period;                 /* extended listen period */
-	uint16	interval;               /* extended listen interval */
-} wl_sd_listen_t;
-
-#define WL_SD_STATE_IDLE 0x0000
-#define WL_SD_SEARCH_SVC 0x0001
-#define WL_SD_ADV_SVC    0x0002
-
-enum wl_dd_state {
-    WL_DD_STATE_IDLE,
-    WL_DD_STATE_SEARCH,
-    WL_DD_STATE_LISTEN
-};
-
-#define MAX_SDO_PROTO_STR_LEN 20
-typedef struct wl_sdo_proto {
-	char str[MAX_SDO_PROTO_STR_LEN];
-	u32 val;
-} wl_sdo_proto_t;
-
-typedef struct sd_offload {
-	u32 sd_state;
-	enum wl_dd_state dd_state;
-	wl_sd_listen_t sd_listen;
-} sd_offload_t;
-
-typedef struct sdo_event {
-	u8 addr[ETH_ALEN];
-	uint16	freq;        /* channel Freq */
-	uint8	count;       /* Tlv count  */
-	uint16	update_ind;
-} sdo_event_t;
-#endif /* WL_SDO */
 
 #ifdef WL11U
 /* Max length of Interworking element */
@@ -509,14 +466,6 @@ typedef struct wl_eventmsg_buf {
 		bool set;
 	} event [MAX_EVENT_BUF_NUM];
 } wl_eventmsg_buf_t;
-
-typedef struct wl_if_event_info {
-	bool valid;
-	int ifidx;
-	int bssidx;
-	uint8 mac[ETHER_ADDR_LEN];
-	char name[IFNAMSIZ+1];
-} wl_if_event_info;
 
 /* private data of cfg80211 interface */
 struct wl_priv {
@@ -555,7 +504,9 @@ struct wl_priv {
 #else
 	struct wl_connect_info conn_info;
 #endif
+#ifdef DEBUGFS_CFG80211
 	struct dentry		*debugfs;
+#endif /* DEBUGFS_CFG80211 */
 	struct wl_pmk_list *pmk_list;	/* wpa2 pmk list */
 	tsk_ctl_t event_tsk;  		/* task of main event handler thread */
 	void *pub;
@@ -594,7 +545,6 @@ struct wl_priv {
 	u64 send_action_id;
 	u64 last_roc_id;
 	wait_queue_head_t netif_change_event;
-	wl_if_event_info if_event_info;
 	struct completion send_af_done;
 	struct afx_hdl *afx_hdl;
 	struct ap_info *ap_info;
@@ -607,9 +557,6 @@ struct wl_priv {
 		struct net_info *_net_info, enum wl_status state, bool set);
 	unsigned long interrested_state;
 	wlc_ssid_t hostapd_ssid;
-#ifdef WL_SDO
-	sd_offload_t *sdo;
-#endif
 #ifdef WL11U
 	bool wl11u;
 	u8 iw_ie[IW_IES_MAX_BUF_LEN];
@@ -626,7 +573,6 @@ struct wl_priv {
 	struct timer_list scan_supp_timer;
 	struct work_struct wlan_work;
 	struct mutex event_sync;	/* maily for up/down synchronization */
-	bool disable_roam_event;
 };
 
 
@@ -867,13 +813,14 @@ struct device *wl_cfg80211_get_parent_dev(void);
 
 extern s32 wl_cfg80211_up(void *para);
 extern s32 wl_cfg80211_down(void *para);
-extern s32 wl_cfg80211_notify_ifadd(int ifidx, char *name, uint8 *mac, uint8 bssidx);
-extern s32 wl_cfg80211_notify_ifdel(int ifidx, char *name, uint8 *mac, uint8 bssidx);
-extern s32 wl_cfg80211_notify_ifchange(int ifidx, char *name, uint8 *mac, uint8 bssidx);
-extern struct net_device* wl_cfg80211_allocate_if(struct wl_priv *wl, int ifidx, char *name,
-	uint8 *mac, uint8 bssidx);
-extern int wl_cfg80211_register_if(struct wl_priv *wl, int ifidx, struct net_device* ndev);
-extern int wl_cfg80211_remove_if(struct wl_priv *wl, int ifidx, struct net_device* ndev);
+extern s32 wl_cfg80211_notify_ifadd(struct net_device *ndev, s32 idx, s32 bssidx,
+	void* _net_attach);
+extern s32 wl_cfg80211_ifdel_ops(struct net_device *net);
+extern s32 wl_cfg80211_notify_ifdel(void);
+extern s32 wl_cfg80211_is_progress_ifadd(void);
+extern s32 wl_cfg80211_is_progress_ifchange(void);
+extern s32 wl_cfg80211_is_progress_ifadd(void);
+extern s32 wl_cfg80211_notify_ifchange(void);
 extern void wl_cfg80211_dbg_level(u32 level);
 extern s32 wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr);
 extern s32 wl_cfg80211_set_p2p_noa(struct net_device *net, char* buf, int len);
@@ -881,13 +828,6 @@ extern s32 wl_cfg80211_get_p2p_noa(struct net_device *net, char* buf, int len);
 extern s32 wl_cfg80211_set_wps_p2p_ie(struct net_device *net, char *buf, int len,
 	enum wl_management_type type);
 extern s32 wl_cfg80211_set_p2p_ps(struct net_device *net, char* buf, int len);
-#ifdef WL_SDO
-extern s32 wl_cfg80211_sdo_init(struct wl_priv *wl);
-extern s32 wl_cfg80211_sdo_deinit(struct wl_priv *wl);
-extern s32 wl_cfg80211_sd_offload(struct net_device *net, char *cmd, char* buf, int len);
-extern s32 wl_cfg80211_pause_sdo(struct net_device *dev, struct wl_priv *wl);
-extern s32 wl_cfg80211_resume_sdo(struct net_device *dev, struct wl_priv *wl);
-#endif
 #ifdef WL_SUPPORT_AUTO_CHANNEL
 #define CHANSPEC_BUF_SIZE	1024
 #define CHAN_SEL_IOCTL_DELAY	300
@@ -909,7 +849,8 @@ extern s32 wl_update_wiphybands(struct wl_priv *wl, bool notify);
 extern s32 wl_cfg80211_if_is_group_owner(void);
 extern chanspec_t wl_ch_host_to_driver(u16 channel);
 extern s32 wl_add_remove_eventmsg(struct net_device *ndev, u16 event, bool add);
-extern void wl_stop_wait_next_action_frame(struct wl_priv *wl, struct net_device *ndev);
+extern void wl_stop_wait_next_action_frame(struct wl_priv *wl);
+extern int wl_cfg80211_update_power_mode(struct net_device *dev);
 #ifdef WL_HOST_BAND_MGMT
 extern s32 wl_cfg80211_set_band(struct net_device *ndev, int band);
 #endif /* WL_HOST_BAND_MGMT */

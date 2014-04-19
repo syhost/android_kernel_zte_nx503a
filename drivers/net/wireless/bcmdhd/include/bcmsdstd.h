@@ -3,7 +3,7 @@
  *
  * $ Copyright Open Broadcom Corporation $
  *
- * $Id: bcmsdstd.h 390649 2013-03-13 01:36:12Z $
+ * $Id: bcmsdstd.h 343301 2012-07-06 13:07:32Z $
  */
 #ifndef	_BCM_SD_STD_H
 #define	_BCM_SD_STD_H
@@ -75,10 +75,8 @@ extern void sdstd_osfree(sdioh_info_t *sd);
 
 
 #ifdef BCMSDIOH_TXGLOM
-/* Total glom pkt can not exceed 64K
- * need one more slot for glom padding packet
- */
-#define SDIOH_MAXGLOM_SIZE	(40+1)
+/* Setting the MAX limit to 10 */
+#define SDIOH_MAXGLOM_SIZE	10
 
 typedef struct glom_buf {
 	uint32 count;				/* Total number of pkts queued */

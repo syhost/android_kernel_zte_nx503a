@@ -300,7 +300,14 @@ struct mdss_panel_common_pdata {
 	int (*off) (struct mdss_panel_data *pdata);
 	void (*bl_fnc) (struct mdss_panel_data *pdata, u32 bl_level);
 
-	struct dsi_panel_cmds on_cmds;
+	struct dsi_panel_cmds on_cmds; //persist.sys.image.enhance=w disptype 24
+
+#ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+/*new image enhace,resove on enhance cmd not effect,mayu add 12.7*/
+  struct dsi_panel_cmds enhance_i_cmds; //init.rc persist.sys.image.enhance=i disptype 26
+  struct dsi_panel_cmds enhance_n_cmds; //persist.sys.image.enhance=n disptype 25
+#endif
+
 	struct dsi_panel_cmds off_cmds;
 };
 
@@ -356,6 +363,12 @@ struct mdss_dsi_ctrl_pdata {
 	struct mdss_hw *dsi_hw;
 
 	struct dsi_panel_cmds on_cmds;
+
+#ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+/*new image enhace,resove on enhance cmd not effect,mayu add 12.7*/
+  struct dsi_panel_cmds enhance_i_cmds; //init.rc persist.sys.image.enhance=i disptype 26
+  struct dsi_panel_cmds enhance_n_cmds; //persist.sys.image.enhance=n disptype 25
+#endif
 	struct dsi_panel_cmds off_cmds;
 
 	struct dcs_cmd_list cmdlist;

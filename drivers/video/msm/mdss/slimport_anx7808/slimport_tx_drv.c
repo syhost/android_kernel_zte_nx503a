@@ -183,9 +183,10 @@ static void sp_tx_link_phy_initialization(void)
 	sp_write_reg(TX_P1, SP_TX_LT_CTRL_REG15, 0x10);
 	sp_write_reg(TX_P1, SP_TX_LT_CTRL_REG18, 0x1F);
 
-	sp_write_reg(TX_P1, SP_TX_LT_CTRL_REG2, 0x36);
-	sp_write_reg(TX_P1, SP_TX_LT_CTRL_REG6, 0x3c);
-	sp_write_reg(TX_P1, SP_TX_LT_CTRL_REG16, 0x18);
+	sp_write_reg(TX_P1, SP_TX_LT_CTRL_REG2, 0x63);
+	sp_write_reg(TX_P1, SP_TX_LT_CTRL_REG6, 0x63);
+	sp_write_reg(TX_P1, SP_TX_LT_CTRL_REG16, 0x31);
+	sp_write_reg(TX_P1, SP_TX_LT_CTRL_REG12, 0x31);
 
 	sp_write_reg(TX_P1, SP_TX_LT_CTRL_REG3, 0x3F);
 }

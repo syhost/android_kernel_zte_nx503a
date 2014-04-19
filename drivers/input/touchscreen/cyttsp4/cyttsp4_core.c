@@ -2152,7 +2152,7 @@ static int cyttsp4_core_suspend(struct device *dev)
 		dev_err(dev, "%s: Error on sleep\n", __func__);
 		return -EAGAIN;
 	}
-	dev_info(dev, "%s\n", __func__);
+	dev_dbg(dev, "%s\n", __func__);
 	return 0;
 }
 
@@ -2166,7 +2166,7 @@ static int cyttsp4_core_resume(struct device *dev)
 		dev_err(dev, "%s: Error on wake\n", __func__);
 		return -EAGAIN;
 	}
-	dev_info(dev, "%s\n", __func__);
+	dev_dbg(dev, "%s\n", __func__);
 	return 0;
 }
 #endif
@@ -2510,9 +2510,7 @@ static int cyttsp4_core_probe(struct cyttsp4_core *core)
 	int rc = 0;
 
 	dev_dbg(dev, "%s: startup\n", __func__);
-	dev_dbg(dev, "%s: debug on\n", __func__);
-	dev_vdbg(dev, "%s: verbose debug on\n", __func__);
-
+    
 	/* get context and debug print buffers */
 	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
 	if (cd == NULL) {

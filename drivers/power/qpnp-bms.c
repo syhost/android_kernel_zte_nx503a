@@ -102,7 +102,7 @@ module_param_named(debug_mask_bms, debug_mask_bms, int, S_IRUGO | S_IWUSR | S_IW
 #endif
 
 #ifdef CONFIG_ZTEMT_CHARGE_X
-//�򿪵��Խӿ�
+//´ò¿ªµ÷ÊÔ½Ó¿Ú
 #define DEBUG  
 #undef KERN_DEBUG
 #define KERN_DEBUG KERN_INFO

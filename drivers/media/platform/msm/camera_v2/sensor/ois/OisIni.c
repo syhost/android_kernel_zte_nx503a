@@ -137,14 +137,14 @@ void	IniIop( void )
 									//			[1:0] 00: DGINT, 01: MON, 1x: IOP3
 #ifdef I2CE2PROM
 	RegWriteA( IOP4SEL, 0x21 ); 	// 0x0234	[5:4] 00: MONA, 01: MONB, 10: MONC, 11: MOND
-									//			[1:0] 00: BUSY1/EPSIIF, 01: MON, 1x: IOP4  (00‚Ìê‡ATSTCLK’[q‚É‚Ä‘I‘ğ)
+									//			[1:0] 00: BUSY1/EPSIIF, 01: MON, 1x: IOP4  (00Â‚ÃŒÂÃªÂÂ‡ÂATSTCLKÂ’[ÂqÂ‚Ã‰Â‚Ã„Â‘IÂ‘Ã°)
 #else
  #ifdef SPIE2PROM
 	RegWriteA( IOP4SEL, 0x11 ); 	// 0x0234	[5:4] 00: MONA, 01: MONB, 10: MONC, 11: MOND
-									//			[1:0] 00: BUSY1/EPSIIF, 01: MON, 1x: IOP4  (00‚Ìê‡ATSTCLK’[q‚É‚Ä‘I‘ğ)
+									//			[1:0] 00: BUSY1/EPSIIF, 01: MON, 1x: IOP4  (00Â‚ÃŒÂÃªÂÂ‡ÂATSTCLKÂ’[ÂqÂ‚Ã‰Â‚Ã„Â‘IÂ‘Ã°)
  #else
 	RegWriteA( IOP4SEL, 0x00 ); 	// 0x0234	[5:4] 00: MONA, 01: MONB, 10: MONC, 11: MOND
-									//			[1:0] 00: BUSY1/EPSIIF, 01: MON, 1x: IOP4  (00‚Ìê‡ATSTCLK’[q‚É‚Ä‘I‘ğ)
+									//			[1:0] 00: BUSY1/EPSIIF, 01: MON, 1x: IOP4  (00Â‚ÃŒÂÃªÂÂ‡ÂATSTCLKÂ’[ÂqÂ‚Ã‰Â‚Ã„Â‘IÂ‘Ã°)
  #endif
 #endif
 	RegWriteA( IOP5SEL, 0x01 ); 	// 0x0235	[5:4] 00: MONA, 01: MONB, 10: MONC, 11: MOND
@@ -159,21 +159,21 @@ void	IniIop( void )
 	RegWriteA( IOP7SEL, 0x00 ); 	// 0x0237	[5:4] 00: MONA, 01: MONB, 10: MONC, 11: MOND
 									//			[1:0] 00: EPSOIF, 01: MON, 1x: IOP7
 	RegWriteA( IOP8SEL, 0x00 ); 	// 0x0238	[5:4] 00: MONA, 01: MONB, 10: MONC, 11: MOND
-									//			[1:0] 00: EPSKIF/MISO, 01: MON, 1x: IOP8  (00‚Ìê‡ATSTCLK’[q‚É‚Ä‘I‘ğ)
+									//			[1:0] 00: EPSKIF/MISO, 01: MON, 1x: IOP8  (00Â‚ÃŒÂÃªÂÂ‡ÂATSTCLKÂ’[ÂqÂ‚Ã‰Â‚Ã„Â‘IÂ‘Ã°)
 
 	/*select busy signal*/
-	RegWriteA( BSYSEL, 0x00 );		// 0x0240	[3:0] 0h: EEPROMƒAƒNƒZƒX‚ÌBUSYM†
-									//				  1h: Servo‰ñ˜H‚ÌŠ„‚İM†
-									//				  2h: ‘ª’è‰ñ˜H‚Ì“®ì‚ğ¦‚·BUSYM†
-									//				  3h: Servo‰ñ˜H‚Ìsin”go—Í‚ÌBUSYM†
-									//				  4h: Gyro‰‰Zˆ—‚ÌBUSYM†
-									//				  5h: Digital GyroƒAƒNƒZƒX‚ÌBUSYM†
-									//				  6h: Calibrationƒf[ƒ^—pEEPROMƒAƒNƒZƒX‚ÌBUSYM†
-									//				  7h: EEPROM§ŒäBUSYM†
-									//				  8h~9h: İ’è‹Ö~
+	RegWriteA( BSYSEL, 0x00 );		// 0x0240	[3:0] 0h: EEPROMÂƒAÂƒNÂƒZÂƒXÂ‚ÃŒBUSYÂMÂÂ†
+									//				  1h: ServoÂ‰Ã±Â˜HÂ‚ÃŒÂŠÂ„ÂÂÂ‚ÃÂMÂÂ†
+									//				  2h: Â‘ÂªÂ’Ã¨Â‰Ã±Â˜HÂ‚ÃŒÂ“Â®ÂÃ¬Â‚Ã°ÂÂ¦Â‚Â·BUSYÂMÂÂ†
+									//				  3h: ServoÂ‰Ã±Â˜HÂ‚ÃŒsinÂ”gÂoÂ—ÃÂ‚ÃŒBUSYÂMÂÂ†
+									//				  4h: GyroÂ‰Â‰ÂZÂÂˆÂ—ÂÂ‚ÃŒBUSYÂMÂÂ†
+									//				  5h: Digital GyroÂƒAÂƒNÂƒZÂƒXÂ‚ÃŒBUSYÂMÂÂ†
+									//				  6h: CalibrationÂƒfÂ[Âƒ^Â—pEEPROMÂƒAÂƒNÂƒZÂƒXÂ‚ÃŒBUSYÂMÂÂ†
+									//				  7h: EEPROMÂÂ§ÂŒÃ¤BUSYÂMÂÂ†
+									//				  8h~9h: ÂÃÂ’Ã¨Â‹Ã–Â~
 
 	/*set spi mode*/
-	RegWriteA( SPIMD3, 0x00 );		// 0x0248	[1:0] x1: SPI-mode3‘Î‰“®ì, 00: SPI-mode0‘Î‰“®ì, 11: SPI-mode0/3—¼‘Î‰“®ì
+	RegWriteA( SPIMD3, 0x00 );		// 0x0248	[1:0] x1: SPI-mode3Â‘ÃÂ‰ÂÂ“Â®ÂÃ¬, 00: SPI-mode0Â‘ÃÂ‰ÂÂ“Â®ÂÃ¬, 11: SPI-mode0/3Â—Â¼Â‘ÃÂ‰ÂÂ“Â®ÂÃ¬
 	RegWriteA( I2CSEL, 0x00 );		// 0x0250	[0]    0: I2C Noise reduction ON, 1: OFF
 	RegWriteA( SRMODE, 0x02 );		// 0x0251	[1]    0: SRAM DL ON, 1: OFF
 									//			[0]    0: USE SRAM OFF, 1: ON
@@ -274,10 +274,10 @@ void	IniSrv( void )
 	RegWriteA( VGA_SET, 0x30 ) ;				// 0x0267		X,Y connect
 	RegWriteA( LSVFC1 , 0x00 ) ;				// 0x0082		
 	if( UcPwmMod == PWMMOD_CVL ) {
-		RegWriteA( LXEQFC2 , 0x01 ) ;				// 0x0083		Linear•â³OFF
+		RegWriteA( LXEQFC2 , 0x01 ) ;				// 0x0083		LinearÂ•Ã¢ÂÂ³OFF
 		RegWriteA( LYEQFC2 , 0x01 ) ;				// 0x008D		
 	}else{
-		RegWriteA( LXEQFC2 , 0x00 ) ;				// 0x0083		Linear•â³OFF
+		RegWriteA( LXEQFC2 , 0x00 ) ;				// 0x0083		LinearÂ•Ã¢ÂÂ³OFF
 		RegWriteA( LYEQFC2 , 0x00 ) ;				// 0x008D		
 	}
 	
@@ -400,14 +400,14 @@ void	IniSrv( void )
 	
 	// Feed Forward X Filter
 	RegWriteA( FFXEN, 0x00 ) ;				// 0x00B2	Equalizer OFF
-	RegWriteA( FFXFC, 0x00 ) ;				// 0x00B3	45‹Convert Circuit OFF
+	RegWriteA( FFXFC, 0x00 ) ;				// 0x00B3	45ÂÂ‹Convert Circuit OFF
 	RegWriteA( FFXDS, 0x00 ) ;				// 0x00B4	Down Sampling 1/1
 	RegWriteA( FXINADD, 0x2C ) ;			// 0x00B7	LXGZF
 	RegWriteA( FXOUTADD, 0x49 ) ;			// 0x00B8	LXGZB
 
 	// Feed Forward Y Filter
 	RegWriteA( FFYEN, 0x00 ) ;				// 0x00B9	Equalizer OFF
-	RegWriteA( FFYFC, 0x00 ) ;				// 0x00BA	45‹Convert Circuit OFF
+	RegWriteA( FFYFC, 0x00 ) ;				// 0x00BA	45ÂÂ‹Convert Circuit OFF
 	RegWriteA( FFYDS, 0x00 ) ;				// 0x00BB	Down Sampling 1/1
 	RegWriteA( FYINADD, 0x6C ) ;			// 0x00BE	LYGZF
 	RegWriteA( FYOUTADD, 0x89 ) ;			// 0x00BF	LYGZB
@@ -539,24 +539,24 @@ void	IniGyr( void )
 	RegWriteA( GEQSW	, 0x11 );		// 0x0101		[ - | - | Sine_In | AD_In ][ - | - | - | T-Filter_Out ]
 	RegWriteA( GSHAKEON , 0x01 );		// 0x0102	 	[ - | - | - | -  ][ - | - | - | CmShakeOn ]
 	RegWriteA( GSHTON	, 0x00 );		// 0x0104		[ - | - | - | CmSht2PanOff ][ - | - | CmShtOpe(1:0) ]
-										//				CmShtOpe[1:0] 00: ƒVƒƒƒbƒ^[OFF, 01: ƒVƒƒƒbƒ^[ON, 1x:ŠO•”§Œä
+										//				CmShtOpe[1:0] 00: ÂƒVÂƒÂƒÂƒbÂƒ^Â[OFF, 01: ÂƒVÂƒÂƒÂƒbÂƒ^Â[ON, 1x:ÂŠOÂ•Â”ÂÂ§ÂŒÃ¤
 	RegWriteA( G2NDCEFON1,0x00 );		// 0x0107       [ -  | -  | -  | gxistp ][ gxlens | gxzoom | gxgain | gxgyro ]
 	RegWriteA( G2NDCEFON0,0x00 );		// 0x0106		[ L4 | L3 | L2 | L1 	][ H2	  | H1	   | I2 	| I1	 ]
 	RegWriteA( GADMEANON, 0x00 );		// 0x0113		[ - | - | - | - ][ - | - | - | CmAdMeanOn ]
-	RegWriteA( GVREFADD , 0x14 );		// 0x0114	 	ƒZƒ“ƒ^[–ß‚µ‚ğs‚¤’x‰„RAM‚ÌƒAƒhƒŒƒX‰ºˆÊ6ƒrƒbƒg@(default 0x14 = GXH1Z2/GYH1Z2)
+	RegWriteA( GVREFADD , 0x14 );		// 0x0114	 	ÂƒZÂƒÂ“Âƒ^Â[Â–ÃŸÂ‚ÂµÂ‚Ã°ÂsÂ‚Â¤Â’xÂ‰Â„RAMÂ‚ÃŒÂƒAÂƒhÂƒÂŒÂƒXÂ‰ÂºÂˆÃŠ6ÂƒrÂƒbÂƒgÂ@(default 0x14 = GXH1Z2/GYH1Z2)
 	RegWriteA( GSHTMOD , 0x0E );		// 0x0115	 	Shutter Hold mode
 	RegWriteA( GLMT3MOD , 0x00 );		// 0x0116 	[ - | - | - | - ][ - | - | - | CmLmt3Mod ]
-										//				CmLmt3Mod	0: ’ÊíƒŠƒ~ƒbƒ^[“®ì, 1: ‰~‚Ì”¼ŒaƒŠƒ~ƒbƒ^[“®ì
+										//				CmLmt3Mod	0: Â’ÃŠÂÃ­ÂƒÂŠÂƒ~ÂƒbÂƒ^Â[Â“Â®ÂÃ¬, 1: Â‰~Â‚ÃŒÂ”Â¼ÂŒaÂƒÂŠÂƒ~ÂƒbÂƒ^Â[Â“Â®ÂÃ¬
 	RegWriteA( GLMT3SEL , 0x00 );		// 0x0117 	[ - | - | - | - ][ - | - | - | CmLmt3Sel ]
-										//				CmLmt3Sel	0: gxlmt3H0/gylmt3H0‚ğg—p, 1: gxlmt3H1/gylmt3H1‚ğg—p
+										//				CmLmt3Sel	0: gxlmt3H0/gylmt3H0Â‚Ã°ÂgÂ—p, 1: gxlmt3H1/gylmt3H1Â‚Ã°ÂgÂ—p
 	RegWriteA( GGADON	, 0x01 );		// 0x011C		[ - | - | - | CmSht2PanOff ][ - | - | CmGadOn(1:0) ]
-										//				CmGadOn[1]	0: CmDwmSmp‚Ìİ’è‚ÅƒTƒ“ƒvƒŠƒ“ƒO, 1: –ˆFsüŠú‚ÅƒTƒ“ƒvƒŠƒ“ƒO
-										//				CmGadOn[0]	0: Analog Gyrog—p, 1: Digital Gyrog—p
-	RegWriteA( GGADSMP1 , 0x01 );		// 0x011E		Digital Gyro‚ÌAD•ÏŠ·Šm’èŠÔ‚ğİ’è
+										//				CmGadOn[1]	0: CmDwmSmpÂ‚ÃŒÂÃÂ’Ã¨Â‚Ã…ÂƒTÂƒÂ“ÂƒvÂƒÂŠÂƒÂ“ÂƒO, 1: Â–ÂˆFsÂÃ¼ÂŠÃºÂ‚Ã…ÂƒTÂƒÂ“ÂƒvÂƒÂŠÂƒÂ“ÂƒO
+										//				CmGadOn[0]	0: Analog GyroÂgÂ—p, 1: Digital GyroÂgÂ—p
+	RegWriteA( GGADSMP1 , 0x01 );		// 0x011E		Digital GyroÂ‚ÃŒADÂ•ÃÂŠÂ·ÂŠmÂ’Ã¨ÂÂÂŠÃ”Â‚Ã°ÂÃÂ’Ã¨
 	RegWriteA( GGADSMP0 , 0x00 );		// 0x011D
-	RegWriteA( GGADSMPT , 0x0E);		// 0x011F		X²‚ÆY²‚Ì‚İæ“¾‚·‚éê‡A0x0E‚Éİ’è
-										//				1Fs‚Å4²æ“¾‚·‚éê‡A0x2D‚Éİ’è
-										//				2FSˆÈã‚Å4²æ“¾‚·‚éê‡A0x1E‚Éİ’è
+	RegWriteA( GGADSMPT , 0x0E);		// 0x011F		XÂÂ²Â‚Ã†YÂÂ²Â‚ÃŒÂ‚ÃÂÃ¦Â“Â¾Â‚Â·Â‚Ã©ÂÃªÂÂ‡ÂA0x0EÂ‚Ã‰ÂÃÂ’Ã¨
+										//				1FsÂ‚Ã…4ÂÂ²ÂÃ¦Â“Â¾Â‚Â·Â‚Ã©ÂÃªÂÂ‡ÂA0x2DÂ‚Ã‰ÂÃÂ’Ã¨
+										//				2FSÂˆÃˆÂÃ£Â‚Ã…4ÂÂ²ÂÃ¦Â“Â¾Â‚Â·Â‚Ã©ÂÃªÂÂ‡ÂA0x1EÂ‚Ã‰ÂÃÂ’Ã¨
 
 	/*Gyro Filter Down Sampling*/
 	RegWriteA( GDWNSMP1 , 0x00 );		// 0x0110 	For overall filter
@@ -615,7 +615,7 @@ void	IniGyr( void )
 	
 	/*Input Sine Wave or AD value*/
 	RegWriteA( GSINTST	, 0x00 );		// 0x018F		[ - | - | - | CmSinTst_X ][ - | - | - | CmSinTst_Y ]
-										//				CmSinTst_X/Y 0: AD’l‚ğg—p, 1: Sin”g‚ğg—p
+										//				CmSinTst_X/Y 0: ADÂ’lÂ‚Ã°ÂgÂ—p, 1: SinÂ”gÂ‚Ã°ÂgÂ—p
 	
 	/* Pan/Tilt parameter */
 	RegWriteA( GPANADDA, 		0x14 );		// 0x0130
@@ -828,7 +828,7 @@ void	IniGfl( void )
 void	IniAdj( void )
 {
 	
-	RegWriteA( CMSDAC, BAIS_CUR ) ;				// 0x0261	Hall Dac“d—¬
+	RegWriteA( CMSDAC, BAIS_CUR ) ;				// 0x0261	Hall DacÂ“dÂ—Â¬
 	RegWriteA( OPGSEL, AMP_GAIN ) ;				// 0x0262	Hall amp Gain
 	
 #ifdef USE_EXE2PROM
@@ -1266,11 +1266,11 @@ void	ClrGyr( unsigned char UcClrFil , unsigned char UcClrMod )
 		
 		/*Select Filter to clear*/
 		RegWriteA( GRAMDLYMOD	, UcClrBit ) ;	// 0x011B	[ - | - | - | P ][ T | L | H | I ]
-												//				w’è‚µ‚½ƒtƒBƒ‹ƒ^[‚ğƒNƒŠƒA‚·‚é‚ªA
-												//				0x00‚Ìê‡‚ÍƒtƒBƒ‹ƒ^[‘S‘Ì‚ğƒNƒŠƒA‚·‚é
+												//				ÂwÂ’Ã¨Â‚ÂµÂ‚Â½ÂƒtÂƒBÂƒÂ‹Âƒ^Â[Â‚Ã°ÂƒNÂƒÂŠÂƒAÂ‚Â·Â‚Ã©Â‚ÂªÂA
+												//				0x00Â‚ÃŒÂÃªÂÂ‡Â‚ÃÂƒtÂƒBÂƒÂ‹Âƒ^Â[Â‘SÂ‘ÃŒÂ‚Ã°ÂƒNÂƒÂŠÂƒAÂ‚Â·Â‚Ã©
 
 		/*Enable Clear*/
-		RegWriteA( GRAMINITON	, UcClrMod ) ;	// 0x0103	[ - | - | - | - ][ - | - | ’x‰„Clr | ŒW”Clr ]
+		RegWriteA( GRAMINITON	, UcClrMod ) ;	// 0x0103	[ - | - | - | - ][ - | - | Â’xÂ‰Â„Clr | ÂŒWÂÂ”Clr ]
 		
 		/*Check RAM Clear complete*/
 		do{

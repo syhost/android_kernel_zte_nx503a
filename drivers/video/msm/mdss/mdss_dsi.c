@@ -1209,6 +1209,11 @@ int dsi_panel_device_register(struct platform_device *pdev,
 	ctrl_pdata->panel_data.event_handler = mdss_dsi_event_handler;
 
 	ctrl_pdata->on_cmds = panel_data->on_cmds;
+#ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+/*new image enhace,resove on enhance cmd not effect,mayu add 12.7*/
+	ctrl_pdata->enhance_i_cmds = panel_data->enhance_i_cmds;
+	ctrl_pdata->enhance_n_cmds = panel_data->enhance_n_cmds;
+#endif
 	ctrl_pdata->off_cmds = panel_data->off_cmds;
 
 	memcpy(&((ctrl_pdata->panel_data).panel_info),

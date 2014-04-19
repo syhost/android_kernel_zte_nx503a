@@ -142,7 +142,7 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 
 	if (value > MDSS_MAX_BL_BRIGHTNESS)
 		value = MDSS_MAX_BL_BRIGHTNESS;
-
+printk("lcd:%s value=%d\n",__func__,value);
 	/* This maps android backlight level 0 to 255 into
 	   driver backlight level 0 to bl_max with rounding */
 	MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
@@ -597,9 +597,15 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	struct mdss_panel_data *pdata;
 	u32 temp = bkl_lvl;
 
+#ifdef CONFIG_ZTEMT_LCD_DEBUG_EN
+  printk("lcd:%s bkl_lvl=%d\n",__func__,bkl_lvl);
+#endif
 	if ((!mfd->panel_power_on || !mfd->bl_updated) &&
 	    !IS_CALIB_MODE_BL(mfd)) {
 		mfd->unset_bl_level = bkl_lvl;
+#ifdef CONFIG_ZTEMT_LCD_DEBUG_EN
+    printk("lcd:%s return 00\n",__func__);
+#endif
 		return;
 	} else {
 		mfd->unset_bl_level = 0;
@@ -620,6 +626,9 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 		 */
 		if (mfd->bl_level_old == temp) {
 			mfd->bl_level = bkl_lvl;
+#ifdef CONFIG_ZTEMT_LCD_DEBUG_EN
+      printk("lcd:%s return 11\n",__func__);
+#endif
 			return;
 		}
 		pdata->set_backlight(pdata, temp);
@@ -642,6 +651,9 @@ void mdss_fb_update_backlight(struct msm_fb_data_type *mfd)
 	if (mfd->unset_bl_level && !mfd->bl_updated) {
 		pdata = dev_get_platdata(&mfd->pdev->dev);
 		if ((pdata) && (pdata->set_backlight)) {
+#ifdef CONFIG_ZTEMT_LCD_DEBUG_EN
+    printk("lcd:%s unset_bl_level=%d\n",__func__,mfd->unset_bl_level);
+#endif
 			mutex_lock(&mfd->bl_lock);
 			mfd->bl_level = mfd->unset_bl_level;
 #ifdef CONFIG_ZTEMT_LCD_MIPI_COMMON

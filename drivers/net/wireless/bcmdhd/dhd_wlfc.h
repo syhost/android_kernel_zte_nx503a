@@ -1,10 +1,15 @@
 /*
 * $Copyright Open 2009 Broadcom Corporation$
-* $Id: dhd_wlfc.h 392044 2013-03-20 07:26:14Z $
+* $Id: dhd_wlfc.h 395161 2013-04-05 13:19:38Z $
 *
 */
 #ifndef __wlfc_host_driver_definitions_h__
 #define __wlfc_host_driver_definitions_h__
+
+#ifdef QMONITOR
+#include <dhd_qmon.h>
+#endif
+
 
 /* 16 bits will provide an absolute max of 65536 slots */
 #define WLFC_HANGER_MAXITEMS 1024
@@ -118,6 +123,10 @@ typedef struct wlfc_mac_descriptor {
 	/* flag. TRUE when in suppress state */
 	uint8 suppressed;
 	uint8 deleting;
+
+#ifdef QMONITOR
+	dhd_qmon_t qmon;
+#endif /* QMONITOR */
 
 #ifdef PROP_TXSTATUS_DEBUG
 	uint32 dstncredit_sent_packets;
@@ -257,17 +266,12 @@ typedef struct athost_wl_status_info {
 	/* Timestamp to compute how long to defer borrowing for */
 	uint32  borrow_defer_timestamp;
 
-	struct pktq bcmcq;
-	bool	bcmc_credit_supported;
-
-
 } athost_wl_status_info_t;
 
 int dhd_wlfc_enable(dhd_pub_t *dhd);
 int dhd_wlfc_interface_event(struct dhd_info *,
 	ewlfc_mac_entry_action_t action, uint8 ifid, uint8 iftype, uint8* ea);
 int dhd_wlfc_FIFOcreditmap_event(struct dhd_info *dhd, uint8* event_data);
-int dhd_wlfc_BCMCCredit_support_event(struct dhd_info *dhd);
 int dhd_wlfc_event(struct dhd_info *dhd);
 int dhd_os_wlfc_block(dhd_pub_t *pub);
 int dhd_os_wlfc_unblock(dhd_pub_t *pub);
@@ -278,6 +282,9 @@ void dhd_wlfc_deinit(dhd_pub_t *dhd);
 int dhd_wlfc_parse_header_info(dhd_pub_t *dhd, void* pktbuf, int tlv_hdr_len,
 	uchar *reorder_info_buf, uint *reorder_info_len);
 
+#ifdef QMONITOR
+void dhd_wlfc_qmon_tx(void* state, void *pktbuf);
+#endif
 int dhd_wlfc_commit_packets(void* state, f_commitpkt_t fcommit,
 	void* commit_ctx, void *pktbuf);
 void dhd_wlfc_cleanup(dhd_pub_t *dhd, ifpkt_cb_t fn, int arg);

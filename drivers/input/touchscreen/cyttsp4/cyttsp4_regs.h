@@ -83,6 +83,12 @@ enum cyttsp4_ic_ebid {
 #define CY_REQUEST_EXCLUSIVE_TIMEOUT	500
 #define CY_COMMAND_COMPLETE_TIMEOUT	500
 
+
+#define HI_BYTE(x)			(u8)(((x) >> 8) & 0xFF)
+#define LO_BYTE(x)			(u8)((x) & 0xFF)
+
+#define CY_CMD_CAT_RETRIEVE_PANEL_SCAN_RET_SZ	5 /* + Data */
+
 /* maximum number of concurrent tracks */
 #define CY_NUM_TCH_ID               10
 

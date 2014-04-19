@@ -30,17 +30,17 @@
 
 // Define According To Usage
 
-/****************************** Defineà–¾ ******************************/
-/*	USE_EXE2PROM		ŠO•”EEPROMg—p									*/
-/*		I2CE2PROM		(I2C EEPROMg—p) *SPI or I2C‹¤‘¶‚Å‚«‚È‚¢		*/
-/*		SPIE2PROM		(SPI EEPROMg—p) *SPI or I2C‹¤‘¶‚Å‚«‚È‚¢		*/
-/*	CIRC_MOVE			‰~“®ì§Œäg—p									*/
-/*	STANDBY_MODE		Standby§Œäg—p(–¢Šm”F)							*/
-/*	GAIN_CONT			:Gain control‹@”\g—p							*/
-/*						:O‹rModeg—p									*/
-/*	LOW_NOISE			Driver ’áNoise Mode/]—ˆPWM						*/
-/*						“d—¬•Ï‰»‚ğ’¼ü•â³‚·‚éˆ—•K{(Fcİ’è•K—v)		*/
-/*	HALLADJ_HW			Hall Calibration LSI‹@”\g—p					*/
+/****************************** DefineÂÃ Â–Â¾ ******************************/
+/*	USE_EXE2PROM		ÂŠOÂ•Â”EEPROMÂgÂ—p									*/
+/*		I2CE2PROM		(I2C EEPROMÂgÂ—p) *SPI or I2CÂ‹Â¤Â‘Â¶Â‚Ã…Â‚Â«Â‚ÃˆÂ‚Â¢		*/
+/*		SPIE2PROM		(SPI EEPROMÂgÂ—p) *SPI or I2CÂ‹Â¤Â‘Â¶Â‚Ã…Â‚Â«Â‚ÃˆÂ‚Â¢		*/
+/*	CIRC_MOVE			Â‰~Â“Â®ÂÃ¬ÂÂ§ÂŒÃ¤ÂgÂ—p									*/
+/*	STANDBY_MODE		StandbyÂÂ§ÂŒÃ¤ÂgÂ—p(Â–Â¢ÂŠmÂ”F)							*/
+/*	GAIN_CONT			:Gain controlÂ‹@Â”\ÂgÂ—p							*/
+/*						:ÂOÂ‹rModeÂgÂ—p									*/
+/*	LOW_NOISE			Driver Â’Ã¡Noise Mode/Â]Â—ÂˆPWM						*/
+/*						Â“dÂ—Â¬Â•ÃÂ‰Â»Â‚Ã°Â’Â¼ÂÃ¼Â•Ã¢ÂÂ³Â‚Â·Â‚Ã©ÂÂˆÂ—ÂÂ•KÂ{(FcÂÃÂ’Ã¨Â•KÂ—v)		*/
+/*	HALLADJ_HW			Hall Calibration LSIÂ‹@Â”\ÂgÂ—p					*/
 /************************************************************************/
 
 //#define		USE_EXE2PROM		// Use Eeprom
@@ -361,10 +361,10 @@ OISINI__	unsigned char	UcPwmMod ;				/* PWM MODE */
 
 // Prottype Declation
 OISINI__ void	IniSet( void ) ;													// Initial Top Function
-//			#define		FS_SEL		0		/* }262LSB/‹/s  */
-//			#define		FS_SEL		1		/* }131LSB/‹/s  */
-//			#define		FS_SEL		2		/* }65.5LSB/‹/s  */
-			#define		FS_SEL		3		/* }32.8LSB/‹/s  */
+//			#define		FS_SEL		0		/* Â}262LSB/ÂÂ‹/s  */
+//			#define		FS_SEL		1		/* Â}131LSB/ÂÂ‹/s  */
+//			#define		FS_SEL		2		/* Â}65.5LSB/ÂÂ‹/s  */
+			#define		FS_SEL		3		/* Â}32.8LSB/ÂÂ‹/s  */
 
 OISINI__ void	ClrGyr( unsigned char, unsigned char ); 							   // Clear Gyro RAM
 	#define CLR_GYR_PRM_RAM 	0x01

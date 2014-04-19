@@ -45,5 +45,9 @@ config ZTEMT_LCD_DISP_ENHANCE
 	bool "LCD disp color enhance"
 	depends on ZTEMT_LCD_MIPI_COMMON
 	default n
+config ZTEMT_LCD_DEBUG_EN
+	bool "LCD debug log enable"
+	depends on ZTEMT_LCD_MIPI_COMMON
+	default n
 endmenu
 source "drivers/video/msm/mdss/slimport_anx7808/Kconfig"

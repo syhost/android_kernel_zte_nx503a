@@ -133,6 +133,8 @@
 			qcom,high-ocv-correction-limit-uv = <50>;
 			qcom,hold-soc-est = <3>;
 
+	 	        qcom,use-external-rsense = <1>;
+
 			qcom,bms-iadc@3800 {
 				reg = <0x3800 0x100>;
 			};
@@ -224,6 +226,7 @@
 			/*soc_resume_limit*/	
 			qcom,resume-soc = <99>;
 			qcom,tchg-mins = <150>;
+			qcom,ibat-calibration-enabled;
 
           /*Add By ZTEMT -begin*/
 	  		qcom,mininput-usb-ma = <500>;

@@ -2,7 +2,7 @@
  * Driver O/S-independent utility routines
  *
  * $Copyright Open Broadcom Corporation$
- * $Id: bcmutils.c 389818 2013-03-08 02:54:43Z $
+ * $Id: bcmutils.c 380908 2013-01-24 12:26:18Z $
  */
 
 #include <bcm_cfg.h>
@@ -1070,57 +1070,6 @@ bcm_ip_ntoa(struct ipv4_addr *ia, char *buf)
 	return (buf);
 }
 
-char *
-bcm_ipv6_ntoa(void *ipv6, char *buf)
-{
-	/* Implementing RFC 5952 Sections 4 + 5 */
-	/* Not thoroughly tested */
-	uint16 tmp[8];
-	uint16 *a = &tmp[0];
-	char *p = buf;
-	int i, i_max = -1, cnt = 0, cnt_max = 1;
-	uint8 *a4 = NULL;
-	memcpy((uint8 *)&tmp[0], (uint8 *)ipv6, IPV6_ADDR_LEN);
-
-	for (i = 0; i < IPV6_ADDR_LEN/2; i++) {
-		if (a[i]) {
-			if (cnt > cnt_max) {
-				cnt_max = cnt;
-				i_max = i - cnt;
-			}
-			cnt = 0;
-		} else
-			cnt++;
-	}
-	if (cnt > cnt_max) {
-		cnt_max = cnt;
-		i_max = i - cnt;
-	}
-	if (i_max == 0 &&
-		/* IPv4-translated: ::ffff:0:a.b.c.d */
-		((cnt_max == 4 && a[4] == 0xffff && a[5] == 0) ||
-		/* IPv4-mapped: ::ffff:a.b.c.d */
-		(cnt_max == 5 && a[5] == 0xffff)))
-		a4 = (uint8*) (a + 6);
-
-	for (i = 0; i < IPV6_ADDR_LEN/2; i++) {
-		if ((uint8*) (a + i) == a4) {
-			snprintf(p, 16, ":%u.%u.%u.%u", a4[0], a4[1], a4[2], a4[3]);
-			break;
-		} else if (i == i_max) {
-			*p++ = ':';
-			i += cnt_max - 1;
-			p[0] = ':';
-			p[1] = '\0';
-		} else {
-			if (i)
-				*p++ = ':';
-			p += snprintf(p, 8, "%x", ntoh16(a[i]));
-		}
-	}
-
-	return buf;
-}
 #ifdef BCMDRIVER
 
 void
@@ -2309,7 +2258,7 @@ bcm_uint64_divide(uint32* r, uint32 a_high, uint32 a_low, uint32 b)
 	*r = r0;
 }
 
-#ifndef setbit /* As in the header file */
+#ifndef setbit       /* As in the header file */
 #ifdef BCMUTILS_BIT_MACROS_USE_FUNCS
 /* Set bit in byte array. */
 void

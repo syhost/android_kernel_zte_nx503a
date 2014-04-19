@@ -91,22 +91,6 @@ s32 dhd_cfg80211_clean_p2p_info(struct wl_priv *wl)
 	return 0;
 }
 
-struct net_device* wl_cfg80211_allocate_if(struct wl_priv *wl, int ifidx, char *name,
-	uint8 *mac, uint8 bssidx)
-{
-	return dhd_allocate_if(wl->pub, ifidx, name, mac, bssidx, FALSE);
-}
-
-int wl_cfg80211_register_if(struct wl_priv *wl, int ifidx, struct net_device* ndev)
-{
-	return dhd_register_if(wl->pub, ifidx, FALSE);
-}
-
-int wl_cfg80211_remove_if(struct wl_priv *wl, int ifidx, struct net_device* ndev)
-{
-	return dhd_remove_if(wl->pub, ifidx, FALSE);
-}
-
 static s32 wl_dongle_up(struct net_device *ndev, u32 up)
 {
 	s32 err = 0;
@@ -117,8 +101,7 @@ static s32 wl_dongle_up(struct net_device *ndev, u32 up)
 	}
 	return err;
 }
-
-s32 dhd_config_dongle(struct wl_priv *wl)
+s32 dhd_config_dongle(struct wl_priv *wl, bool need_lock)
 {
 #ifndef DHD_SDALIGN
 #define DHD_SDALIGN	32
@@ -134,6 +117,9 @@ s32 dhd_config_dongle(struct wl_priv *wl)
 
 	ndev = wl_to_prmry_ndev(wl);
 
+	if (need_lock)
+		rtnl_lock();
+
 	err = wl_dongle_up(ndev, 0);
 	if (unlikely(err)) {
 		WL_ERR(("wl_dongle_up failed\n"));
@@ -142,7 +128,8 @@ s32 dhd_config_dongle(struct wl_priv *wl)
 	dhd_dongle_up = true;
 
 default_conf_out:
-
+	if (need_lock)
+		rtnl_unlock();
 	return err;
 
 }
@@ -577,6 +564,18 @@ int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, char *command)
 		WL_TRACE_HW4(("DHCP session starts\n"));
 
 #if defined(DHCP_SCAN_SUPPRESS)
+{
+	int ret;
+	dhd_pub_t *dhd =  (dhd_pub_t *)(wl->pub);
+        uint32 mpc = 0;
+	char iovbuf[28];
+
+        bcm_mkiovar("mpc", (char *)&mpc, 4, iovbuf, sizeof(iovbuf));
+        if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0)) < 0) 
+        {
+                WL_ERR(("%s DHCP_SCAN_SUPPRESS: set mpc=0 failed: %d\n", __FUNCTION__,ret));
+        }
+}
 		/* Suppress scan during the DHCP */
 		wl_cfg80211_scan_suppress(dev, 1);
 #endif /* OEM_ANDROID */
@@ -634,6 +633,18 @@ int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, char *command)
 
 
 #if defined(DHCP_SCAN_SUPPRESS)
+{
+	int ret;
+	dhd_pub_t *dhd =  (dhd_pub_t *)(wl->pub);
+        uint32 mpc = 1;
+	char iovbuf[28];
+
+        bcm_mkiovar("mpc", (char *)&mpc, 4, iovbuf, sizeof(iovbuf));
+        if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0)) < 0) 
+        {
+               WL_ERR(("%s DHCP_SCAN_SUPPRESS: set mpc=1 failed: %d\n", __FUNCTION__,ret));
+        }
+}
 		/* Since DHCP is complete, enable the scan back */
 		wl_cfg80211_scan_suppress(dev, 0);
 #endif /* OEM_ANDROID */

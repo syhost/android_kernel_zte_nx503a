@@ -30,15 +30,20 @@ DEFINE_LED_TRIGGER(bl_led_trigger);
 
 static struct mdss_dsi_phy_ctrl phy_params;
 #ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+enum {
+	INTENSITY_NORMAL=24,
+	INTENSITY_01,
+	INTENSITY_02
+};
 extern unsigned int zte_intensity_value;
 extern struct mdss_dsi_ctrl_pdata *zte_mdss_dsi_ctrl;
-extern void zte_mipi_disp_inc(unsigned int state);
 #endif
+
 #ifdef CONFIG_ZTEMT_MIPI_1080P_R63311_SHARP_IPS
 /*mayu,3.25*/
 #define MAX_LCD_BL_VAL   4095
 #define ZTE_MAX_LCD_BL_VAL 4095  //360 lm
-// 1072 100 lm default 58->1244 ,so 1720-500 减去172做调整
+// 1072 100 lm default 58->1244 ,so 1720-500 录玫脠楼172脳枚碌梅脮没
 #define ZTE_LCD_BL_FIX_MAX_VAL 1720
 #define ZTE_LCD_BL_FIX_MIN_VAL 500
 #define ZTE_LCD_BL_FIX_STEP    172
@@ -175,7 +180,10 @@ static void sharp_r63311_set_backlight(struct mdss_dsi_ctrl_pdata *ctrl,u32 bl_l
 		sharp_r63311_51[1] = (bl_level & 0xf00) >> 8;
 		sharp_r63311_51[2] = bl_level & 0xff;
 	}
-	pr_debug("lcd:%s: bl_level=%d\n", __func__,bl_level);
+
+#ifdef CONFIG_ZTEMT_LCD_DEBUG_EN
+	printk("lcd:%s: bl_level=%d\n", __func__,bl_level);
+#endif
 
   memset(&lcm_bl_cmds, 0, sizeof(lcm_bl_cmds));
   lcm_bl_cmds.cmds = &sharp_r63311_1080p_bl_cmds;
@@ -238,8 +246,9 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			   __func__, __LINE__);
 		return;
 	}
-
-	pr_debug("%s: enable = %d\n", __func__, enable);
+#ifdef CONFIG_ZTEMT_LCD_DEBUG_EN
+	printk("lcd:%s: enable = %d\n", __func__, enable);
+#endif
 
 	if (enable) {
 #ifdef CONFIG_ZTEMT_LCD_AVDD_NEGATIVE_CONTRL
@@ -309,12 +318,16 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 
 	if (pdata == NULL) {
-		pr_err("%s: Invalid input data\n", __func__);
+		printk("%s: Invalid input data\n", __func__);
 		return;
 	}
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
+
+#ifdef CONFIG_ZTEMT_LCD_DEBUG_EN
+  printk("lcd:%s: bl_level=%d\n", __func__,bl_level);
+#endif
 
 	switch (ctrl_pdata->bklt_ctrl) {
 	case BL_WLED:
@@ -331,7 +344,7 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 #endif
 		break;
 	default:
-		pr_err("%s: Unknown bl_ctrl configuration\n",
+		printk("%s: Unknown bl_ctrl configuration\n",
 			__func__);
 		break;
 	}
@@ -351,15 +364,41 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 				panel_data);
 	mipi  = &pdata->panel_info.mipi;
 
-	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
-
-	if (ctrl->on_cmds.cmd_cnt)
-		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
+#ifdef CONFIG_ZTEMT_LCD_DEBUG_EN
+	printk("lcd:%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+#endif
 
 #ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
 /*disp color enhance,mayu add*/
 	zte_mdss_dsi_ctrl = ctrl;
-  zte_mipi_disp_inc(zte_intensity_value);
+
+#ifdef CONFIG_ZTEMT_LCD_DEBUG_EN
+  printk("lcd:%s zte_intensity_value=%d====\n", __func__, zte_intensity_value);
+#endif
+
+	switch (zte_intensity_value) {
+	case INTENSITY_NORMAL:
+		if (ctrl->on_cmds.cmd_cnt)
+		  mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
+		break;
+	case INTENSITY_01:
+		if (ctrl->enhance_n_cmds.cmd_cnt)
+		   mdss_dsi_panel_cmds_send(ctrl, &ctrl->enhance_n_cmds);
+		break;
+	case INTENSITY_02:
+		if (ctrl->enhance_i_cmds.cmd_cnt)
+		   mdss_dsi_panel_cmds_send(ctrl, &ctrl->enhance_i_cmds);
+		break;
+	default:
+		if (ctrl->on_cmds.cmd_cnt)
+		  mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
+		break;
+
+	}
+#else
+/*qcom ori*/
+	if (ctrl->on_cmds.cmd_cnt)
+		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
 #endif
 
 	pr_debug("%s:-\n", __func__);
@@ -379,7 +418,9 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+#ifdef CONFIG_ZTEMT_LCD_DEBUG_EN
+	printk("lcd:%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+#endif
 
 	mipi  = &pdata->panel_info.mipi;
 
@@ -475,7 +516,6 @@ static int mdss_dsi_parse_dcs_cmds(struct device_node *np,
 
 	return 0;
 }
-
 
 static int mdss_panel_parse_dt(struct platform_device *pdev,
 			       struct mdss_panel_common_pdata *panel_data)
@@ -784,6 +824,14 @@ static int mdss_panel_parse_dt(struct platform_device *pdev,
 
 	mdss_dsi_parse_dcs_cmds(np, &panel_data->on_cmds,
 		"qcom,panel-on-cmds", "qcom,on-cmds-dsi-state");
+
+#ifdef CONFIG_ZTEMT_LCD_DISP_ENHANCE
+/*new image enhace,resove on enhance cmd not effect,mayu add 12.7*/
+	mdss_dsi_parse_dcs_cmds(np, &panel_data->enhance_i_cmds,
+		"qcom,panel-enhance_cmd_i", "qcom,on-cmds-dsi-state");
+	mdss_dsi_parse_dcs_cmds(np, &panel_data->enhance_n_cmds,
+		"qcom,panel-enhance_cmd_n", "qcom,on-cmds-dsi-state");
+#endif
 
 	mdss_dsi_parse_dcs_cmds(np, &panel_data->off_cmds,
 		"qcom,panel-off-cmds", "qcom,off-cmds-dsi-state");

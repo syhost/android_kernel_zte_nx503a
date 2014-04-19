@@ -2,7 +2,7 @@
  * bcmevent read-only data shared by kernel or app layers
  *
  * $Copyright Open Broadcom Corporation$
- * $Id: bcmevent.c 392044 2013-03-20 07:26:14Z $
+ * $Id: bcmevent.c 389384 2013-03-06 12:20:17Z $
  */
 
 #include <typedefs.h>
@@ -10,6 +10,10 @@
 #include <proto/ethernet.h>
 #include <proto/bcmeth.h>
 #include <proto/bcmevent.h>
+
+#if WLC_E_LAST != 125
+#error "You need to add an entry to bcmevent_names[] for the new event"
+#endif
 
 const bcmevent_name_t bcmevent_names[] = {
 	{ WLC_E_SET_SSID, "SET_SSID" },
@@ -80,7 +84,7 @@ const bcmevent_name_t bcmevent_names[] = {
 	{ WLC_E_ACTION_FRAME_RX, "ACTION_FRAME_RX" },
 	{ WLC_E_ACTION_FRAME_COMPLETE, "ACTION_FRAME_COMPLETE" },
 #endif
-#if 0 && (NDISVER >= 0x0620)
+#if 0 && (0>= 0x0620)
 	{ WLC_E_PRE_ASSOC_IND, "ASSOC_RECV" },
 	{ WLC_E_PRE_REASSOC_IND, "REASSOC_RECV" },
 	{ WLC_E_CHANNEL_ADOPTED, "CHANNEL_ADOPTED" },
@@ -123,11 +127,6 @@ const bcmevent_name_t bcmevent_names[] = {
 	{ WLC_E_ASSOC_REQ_IE, "ASSOC_REQ_IE" },
 	{ WLC_E_ASSOC_RESP_IE, "ASSOC_RESP_IE" },
 	{ WLC_E_ACTION_FRAME_RX_NDIS, "WLC_E_ACTION_FRAME_RX_NDIS" },
-#ifdef WLNIC
-	{ WLC_E_NIC_AF_TXS, "ACTION FRAME TXS" },
-	{ WLC_E_NIC_NIC_REPORT, "NIC REPORT" },
-#endif
-	{ WLC_E_BEACON_FRAME_RX, "BEACON FRAME RX" },
 #ifdef WLTDLS
 	{ WLC_E_TDLS_PEER_EVENT, "TDLS_PEER_EVENT" },
 #endif /* WLTDLS */
@@ -147,8 +146,6 @@ const bcmevent_name_t bcmevent_names[] = {
 	{ WLC_E_PROXD, "WLC_E_PROXD" },
 #endif
 	{ WLC_E_CCA_CHAN_QUAL, "CCA_BASED_CHANNEL_QUALITY" },
-	{ WLC_E_BSSID, "BSSID_CHANGED" },
-	{ WLC_E_BCMC_CREDIT_SUPPORT, "BCMC_CREDIT_SUPPORT" },
 };
 
 const int bcmevent_names_size = ARRAYSIZE(bcmevent_names);

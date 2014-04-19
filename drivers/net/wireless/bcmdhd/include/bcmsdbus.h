@@ -4,7 +4,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: bcmsdbus.h 390634 2013-03-13 00:23:58Z $
+ * $Id: bcmsdbus.h 387187 2013-02-24 09:19:34Z $
  */
 
 #ifndef	_sdio_api_h_
@@ -28,11 +28,12 @@
 #define SDIOH_DATA_PIO          0       /* PIO mode */
 #define SDIOH_DATA_DMA          1       /* DMA mode */
 
+#ifdef BCMSDIOH_TXGLOM
 /* Max number of glommed pkts */
 #ifdef CUSTOM_MAX_TXGLOM_SIZE
 #define SDPCM_MAXGLOM_SIZE  CUSTOM_MAX_TXGLOM_SIZE
 #else
-#define SDPCM_MAXGLOM_SIZE	40
+#define SDPCM_MAXGLOM_SIZE	10
 #endif /* CUSTOM_MAX_TXGLOM_SIZE */
 
 #define SDPCM_TXGLOM_CPY 0			/* SDIO 2.0 should use copy mode */
@@ -43,12 +44,14 @@
 #ifdef CUSTOM_TXGLOM_SIZE
 #define SDPCM_DEFGLOM_SIZE  CUSTOM_TXGLOM_SIZE
 #else
-#define SDPCM_DEFGLOM_SIZE  40
+#define SDPCM_DEFGLOM_SIZE  10
 #endif /* CUSTOM_TXGLOM_SIZE */
 #else
 #define SDPCM_DEFGLOM_MODE	SDPCM_TXGLOM_CPY
 #define SDPCM_DEFGLOM_SIZE  3
 #endif /* BCMSDIOH_TXGLOM_HIGHSPEED */
+#endif /* BCMSDIOH_TXGLOM */
+
 
 typedef int SDIOH_API_RC;
 

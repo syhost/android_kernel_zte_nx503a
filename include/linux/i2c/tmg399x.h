@@ -360,14 +360,24 @@ struct sGesture_Result
     int  exit_angle;
 };
 
+struct tmg399x_wake_lock{
+    struct wake_lock lock;
+    bool   locked;
+    char   *name;
+};
 
 struct tmg399x_chip {
 	struct mutex lock;
-    struct wake_lock proximity_wake_lock;
+    //struct wake_lock proximity_wake_lock;
+    //struct wake_lock display_power_controller;
+    struct tmg399x_wake_lock proximity_wakelock;
+    struct tmg399x_wake_lock display_power_controller;
 	struct i2c_client *client;
 	struct work_struct irq_work;
 	struct delayed_work als_poll_work;
 	struct delayed_work prox_calibrate_work;
+	struct hrtimer prox_unwakelock_timer;
+
 	struct tmg399x_prox_info prx_inf;
 	struct tmg399x_als_info als_inf;
 	struct tmg399x_parameters params;
@@ -395,7 +405,7 @@ struct tmg399x_chip {
     int  prox_thres_hi_max;
     int  prox_thres_lo_min;
     int  prox_data_max;
-    
+    int prox_manual_calibrate_threshold;
 
     char *chip_name;
     
@@ -406,16 +416,18 @@ struct tmg399x_chip {
 	bool wait_enabled;
 	bool prx_enabled;
 	bool ges_enabled;
-    bool ges_debug_enable;
-    bool light_debug_enable;
-    bool prox_debug_enable;
-    bool prox_calibrate_result;
-    bool prox_calibrate_start;
+	bool ges_debug_enable;
+	bool light_debug_enable;
+	bool prox_debug_enable;
+	bool prox_calibrate_result;
+	bool prox_calibrate_start;
 	bool als_gain_auto;
-    bool wakeup_from_sleep;
-    bool wakelock_locked;
-    bool irq_enabled;
-    bool gesture_start; 
+	bool wakeup_from_sleep;
+	bool wakelock_locked;
+	bool irq_enabled;
+	bool irq_work_status;
+	bool gesture_start; 
+	bool phone_is_sleep;
 };
 
 struct lux_segment {

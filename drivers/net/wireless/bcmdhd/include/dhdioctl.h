@@ -7,7 +7,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhdioctl.h 358413 2012-09-24 04:50:47Z $
+ * $Id: dhdioctl.h 390859 2013-03-14 01:09:31Z $
  */
 
 #ifndef _dhdioctl_h_
@@ -67,11 +67,7 @@ enum {
 #define DHD_GLOM_VAL	0x0400
 #define DHD_EVENT_VAL	0x0800
 #define DHD_BTA_VAL	0x1000
-#if 0 && (NDISVER >= 0x0630) && 1
-#define DHD_SCAN_VAL	0x2000
-#else
 #define DHD_ISCAN_VAL	0x2000
-#endif
 #define DHD_ARPOE_VAL	0x4000
 #define DHD_REORDER_VAL	0x8000
 #define DHD_WL_VAL		0x10000

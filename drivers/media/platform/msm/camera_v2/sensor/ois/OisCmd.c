@@ -321,7 +321,7 @@ unsigned long	TnePtp ( unsigned char	UcDirSel, unsigned char	UcBfrAft )
 	UnDwdVal		StTneVal ;
 	unsigned char	UcRegVal ;
 
-	MesFil( THROUGH ) ;					// ‘ª’è—pƒtƒBƒ‹ƒ^[‚ğİ’è‚·‚éB
+	MesFil( THROUGH ) ;					// Â‘ÂªÂ’Ã¨Â—pÂƒtÂƒBÂƒÂ‹Âƒ^Â[Â‚Ã°ÂÃÂ’Ã¨Â‚Â·Â‚Ã©ÂB
 
 
 	if ( !UcDirSel ) {
@@ -1114,20 +1114,20 @@ unsigned char	TneGvc( void )
 	RegWriteA( GDLYMON20, 0xF5 ) ;		// 0x0186 <- GYADZ(0x18F5)
 //	RegWriteA( GDLYMON21, 0x01 ) ;		// 0x0187 <- GYADZ(0x18F5)
 	RegWriteA( GDLYMON21, 0x00 ) ;		// 0x0187 <- GYADZ(0x18F5)
-	MesFil( THROUGH ) ;				// ‘ª’è—pƒtƒBƒ‹ƒ^[‚ğİ’è‚·‚éB
+	MesFil( THROUGH ) ;				// Â‘ÂªÂ’Ã¨Â—pÂƒtÂƒBÂƒÂ‹Âƒ^Â[Â‚Ã°ÂÃÂ’Ã¨Â‚Â·Â‚Ã©ÂB
 	RegWriteA( MSF1EN, 0x01 ) ;			// 0x00C0		Measure Filter1 Equalizer ON
 	//////////
 	// X
 	//////////
 	BsyWit( DLYCLR2, 0x80 ) ;			// 0x00EF	Measure Filter1 Delay RAM Clear
-	StAdjPar.StGvcOff.UsGxoVal = (unsigned short)GenMes( GYRMON1, 0 );		// 64‰ñ‚Ì•½‹Ï’l‘ª’è	GYRMON1(0x1110) <- GXADZ(0x19F5)
+	StAdjPar.StGvcOff.UsGxoVal = (unsigned short)GenMes( GYRMON1, 0 );		// 64Â‰Ã±Â‚ÃŒÂ•Â½Â‹ÃÂ’lÂ‘ÂªÂ’Ã¨	GYRMON1(0x1110) <- GXADZ(0x19F5)
 	RegWriteA( IZAH, (unsigned char)(StAdjPar.StGvcOff.UsGxoVal >> 8) ) ;	// 0x03A0		Set Offset High byte
 	RegWriteA( IZAL, (unsigned char)(StAdjPar.StGvcOff.UsGxoVal) ) ;		// 0x03A1		Set Offset Low byte
 	//////////
 	// Y
 	//////////
 	BsyWit( DLYCLR2, 0x80 ) ;			// 0x00EF	Measure Filter1 Delay RAM Clear
-	StAdjPar.StGvcOff.UsGyoVal = (unsigned short)GenMes( GYRMON2, 0 );		// 64‰ñ‚Ì•½‹Ï’l‘ª’è	GYRMON2(0x1111) <- GYADZ(0x18F5)
+	StAdjPar.StGvcOff.UsGyoVal = (unsigned short)GenMes( GYRMON2, 0 );		// 64Â‰Ã±Â‚ÃŒÂ•Â½Â‹ÃÂ’lÂ‘ÂªÂ’Ã¨	GYRMON2(0x1111) <- GYADZ(0x18F5)
 	RegWriteA( IZBH, (unsigned char)(StAdjPar.StGvcOff.UsGyoVal >> 8) ) ;	// 0x03A2		Set Offset High byte
 	RegWriteA( IZBL, (unsigned char)(StAdjPar.StGvcOff.UsGyoVal) ) ;		// 0x03A3		Set Offset Low byte
 	
@@ -1308,13 +1308,13 @@ void	S2cPro( unsigned char uc_mode )
 #endif
 //		RegWriteA( GLMT3SEL, 0x01 ) ;											// 0x0117
 		RegWriteA( G2NDCEFON0, 0x04 ) ;											// 0x0106 2ND H1 use
-		// HPF¨Through Setting
+		// HPFÂÂ¨Through Setting
 		RegWriteA( GSHTON, 0x11 ) ;												// 0x0104
 
 	}
 	else
 	{
-		// HPF¨Through Setting
+		// HPFÂÂ¨Through Setting
 		RegWriteA( GSHTON, 0x00 ) ;												// 0x0104
 		RegWriteA( G2NDCEFON0, 0x00 ) ;											// 0x0106 1st H1 use
 //		RegWriteA( GLMT3SEL, 0x00 ) ;											// 0x0117
@@ -1391,7 +1391,7 @@ const unsigned char	CucFreqVal[ 17 ]	= {
 		0x3E				// 10:	4.07Hz
 	} ;
 	
-/* U•‚Íwavxg(13C3h),wavyg(13C4h)‚Å’²® */
+/* ÂUÂ•ÂÂ‚Ãwavxg(13C3h),wavyg(13C4h)Â‚Ã…Â’Â²ÂÂ® */
 void	SetSinWavePara( unsigned char UcTableVal ,	unsigned char UcMethodVal )
 {
 	unsigned char	UcFreqDat ;
@@ -1414,7 +1414,7 @@ void	SetSinWavePara( unsigned char UcTableVal ,	unsigned char UcMethodVal )
 		MesFil( NOISE ) ;			/* LPF */
 	}
 	
-	if( UcFreqDat == 0xF0 )			/* Sine”g’†~ */
+	if( UcFreqDat == 0xF0 )			/* SineÂ”gÂ’Â†Â~ */
 	{
 		RegWriteA( SINXADD, 0x00 ) ;			/* 0x00E3	---- */
 		RegWriteA( SINYADD, 0x00 ) ;			/* 0x00E4	---- */
@@ -1435,8 +1435,8 @@ void	SetSinWavePara( unsigned char UcTableVal ,	unsigned char UcMethodVal )
 			RamWriteA( LYDODAT, 0x0000 ) ;			/* 0x119A	*/
 		}
 		RegWriteA( MSFDS, 0x00 ) ;				/* 0x00C8	1/1 down sampling */
-		RegWriteA( MSF1EN, 0x00 ) ;				/* 0x00C0	‘ª’è—pFilter1‚Ì‰‰ZOFF */
-		RegWriteA( MSF2EN, 0x00 ) ;				/* 0x00C4	‘ª’è—pFilter2‚Ì‰‰ZOFF */
+		RegWriteA( MSF1EN, 0x00 ) ;				/* 0x00C0	Â‘ÂªÂ’Ã¨Â—pFilter1Â‚ÃŒÂ‰Â‰ÂZOFF */
+		RegWriteA( MSF2EN, 0x00 ) ;				/* 0x00C4	Â‘ÂªÂ’Ã¨Â—pFilter2Â‚ÃŒÂ‰Â‰ÂZOFF */
 	}
 	else
 	{
@@ -1464,8 +1464,8 @@ void	SetSinWavePara( unsigned char UcTableVal ,	unsigned char UcMethodVal )
 		}
 		
 		RegWriteA( MSFDS, 0x01 ) ;				/* 0x00C8	1/2 down sampling */
-		RegWriteA( MSF1EN, 0x81 ) ;				/* 0x00C0	‘ª’è—pFilter1‚Ì‰‰ZON */
-		RegWriteA( MSF2EN, 0x81 ) ;				/* 0x00C4	‘ª’è—pFilter2‚Ì‰‰ZON */
+		RegWriteA( MSF1EN, 0x81 ) ;				/* 0x00C0	Â‘ÂªÂ’Ã¨Â—pFilter1Â‚ÃŒÂ‰Â‰ÂZON */
+		RegWriteA( MSF2EN, 0x81 ) ;				/* 0x00C4	Â‘ÂªÂ’Ã¨Â—pFilter2Â‚ÃŒÂ‰Â‰ÂZON */
 		
 	}
 	
@@ -1750,7 +1750,7 @@ void	SetZsp( unsigned char	UcZoomStepDat )
 	
 	/* Zoom Step */
 	if(UcZoomStepDat > (ZOOMTBL - 1))
-		UcZoomStepDat = (ZOOMTBL -1) ;										/* ãŒÀ‚ğZOOMTBL-1‚Éİ’è‚·‚é */
+		UcZoomStepDat = (ZOOMTBL -1) ;										/* ÂÃ£ÂŒÃ€Â‚Ã°ZOOMTBL-1Â‚Ã‰ÂÃÂ’Ã¨Â‚Â·Â‚Ã© */
 
 	if( UcZoomStepDat == 0 )				/* initial setting	*/
 	{
@@ -1943,7 +1943,7 @@ const signed char	ScCselRate[ CRATETABLE ]	= {
 #define	TARGET_FREQ		48000.0F
 #define	START_RSEL		0x03	/* Typ */
 #define	START_CSEL		0x07	/* Typ bit4:OSCPMSEL */
-#define	MEAS_MAX		32		/* ãŒÀ32‰ñ */
+#define	MEAS_MAX		32		/* ÂÃ£ÂŒÃ€32Â‰Ã± */
 /* Measure Status (UcClkJdg) */
 #define	UNDR_MEAS		0x00
 #define	FIX_MEAS		0x01
@@ -2024,7 +2024,7 @@ unsigned short	OscAdj( void )
 			{
 				UcMeasFlg |= RSEL1ST ;
 			}
-			ScTblRate_Now = ScRselRate[ UcOscrsel ] ;					/* ¡‚ÌRate */
+			ScTblRate_Now = ScRselRate[ UcOscrsel ] ;					/* ÂÂ¡Â‚ÃŒRate */
 			ScTblRate_Tgt = ScTblRate_Now + (short)FcalB ;
 			if( ScTblRate_Now > ScTblRate_Tgt )
 			{
@@ -2194,7 +2194,7 @@ void SetSineWave( unsigned char UcJikuSel , unsigned char UcMeasMode )
 
 	/* Set Frequency */
 	//****************************************************
-	//	ü”g” = (fs/96)*(SWB+1)/(SWA+1)*1/(2^SWC)	[ Hz ]
+	//	ÂÃ¼Â”gÂÂ” = (fs/96)*(SWB+1)/(SWA+1)*1/(2^SWC)	[ Hz ]
 	//****************************************************
 	RegWriteA( SWFC1 , UcSWFC1[UcMeasMode] );									// 0x00DD	 [ SWB(7:4) ][ SWA(3:0) ]
 	RegWriteA( SWFC2 , UcSWFC2[UcMeasMode] );									// 0x00DE	 [ SWCIR | SWDIR | - | - ][ SWCOM | SWFC(2:0) ]
@@ -2234,11 +2234,11 @@ void StartSineWave( void )
 {
 	/* Start Sine Wave */
 	//****************************************************
-	//	–’ˆÓ–@ƒTƒCƒ“”g‚ğÀs‚·‚é‘O‚ÉˆÈ‰º‚ÌRAM/REG‚ğİ’è‚µ‚Ä‚­‚¾‚³‚¢@
-	//				- RAM:1290h`12A8h (ƒTƒCƒ“”gƒe[ƒuƒ‹)
-	//				- RAM:13C3h`13C4h (U•)
-	//				- RAM:11D5h`11D6h (ŠJnÀ•W)
-	//				- REG:00DDh,00DEh  (ü”g”)
+	//	ÂÂ–Â’ÂÂˆÃ“ÂÂ–Â@ÂƒTÂƒCÂƒÂ“Â”gÂ‚Ã°ÂÃ€ÂsÂ‚Â·Â‚Ã©Â‘OÂ‚Ã‰ÂˆÃˆÂ‰ÂºÂ‚ÃŒRAM/REGÂ‚Ã°ÂÃÂ’Ã¨Â‚ÂµÂ‚Ã„Â‚Â­Â‚Â¾Â‚Â³Â‚Â¢Â@
+	//				- RAM:1290hÂ`12A8h (ÂƒTÂƒCÂƒÂ“Â”gÂƒeÂ[ÂƒuÂƒÂ‹)
+	//				- RAM:13C3hÂ`13C4h (ÂUÂ•Â)
+	//				- RAM:11D5hÂ`11D6h (ÂŠJÂnÂÃ€Â•W)
+	//				- REG:00DDh,00DEh  (ÂÃ¼Â”gÂÂ”)
 	//****************************************************
 	RegWriteA( SWEN , 0x80 );													// 0x00DB	  [ SINON | SINRST | - | - ][ SININISET | - | - | - ]
 }
@@ -2297,7 +2297,7 @@ void SetMeasFil( unsigned char UcJikuSel , unsigned char UcMeasMode , unsigned c
 
 	/* Set Measure Filter Down Sampling */
 	//****************************************************
-	//	‘ª’èFilter‚Ìƒ_ƒEƒ“ƒTƒ“ƒvƒŠƒ“ƒO = Fs/(MSFDS+1)
+	//	Â‘ÂªÂ’Ã¨FilterÂ‚ÃŒÂƒ_ÂƒEÂƒÂ“ÂƒTÂƒÂ“ÂƒvÂƒÂŠÂƒÂ“ÂƒO = Fs/(MSFDS+1)
 	//****************************************************
 	RegWriteA( MSFDS , 0x00 );													// 0x00C8
 }
@@ -2340,8 +2340,8 @@ void StopMeasFil( void )
 unsigned char	 LoopGainAdj( unsigned char UcJikuSel)
 {
 	//****************************************************
-	//	–’ˆÓ–@‚±‚Ì’²®ŠÖ”‚ğÀs‚·‚é‘O‚ÉA
-	//			  ˆÈ‰º‚ÌRAM‚ğ“KØ‚È’l‚Éİ’è‚µ‚Ä‚­‚¾‚³‚¢
+	//	ÂÂ–Â’ÂÂˆÃ“ÂÂ–Â@Â‚Â±Â‚ÃŒÂ’Â²ÂÂ®ÂŠÃ–ÂÂ”Â‚Ã°ÂÃ€ÂsÂ‚Â·Â‚Ã©Â‘OÂ‚Ã‰ÂA
+	//			  ÂˆÃˆÂ‰ÂºÂ‚ÃŒRAMÂ‚Ã°Â“KÂÃ˜Â‚ÃˆÂ’lÂ‚Ã‰ÂÃÂ’Ã¨Â‚ÂµÂ‚Ã„Â‚Â­Â‚Â¾Â‚Â³Â‚Â¢
 	//				 - lxgain [ 132Ah ]
 	//				 - lygain [ 136Ah ]
 	//****************************************************
@@ -2454,8 +2454,8 @@ unsigned char	 LoopGainAdj( unsigned char UcJikuSel)
 unsigned char  BiasOffsetAdj( unsigned char UcJikuSel , unsigned char UcMeasCnt )
 {
 	//****************************************************
-	//	–’ˆÓ–@‚±‚Ì’²®ŠÖ”‚ğÀs‚·‚é‘O‚ÉA
-	//			  ˆÈ‰º‚ÌRAM‚ğ“KØ‚È’l‚Éİ’è‚µ‚Ä‚­‚¾‚³‚¢
+	//	ÂÂ–Â’ÂÂˆÃ“ÂÂ–Â@Â‚Â±Â‚ÃŒÂ’Â²ÂÂ®ÂŠÃ–ÂÂ”Â‚Ã°ÂÃ€ÂsÂ‚Â·Â‚Ã©Â‘OÂ‚Ã‰ÂA
+	//			  ÂˆÃˆÂ‰ÂºÂ‚ÃŒRAMÂ‚Ã°Â“KÂÃ˜Â‚ÃˆÂ’lÂ‚Ã‰ÂÃÂ’Ã¨Â‚ÂµÂ‚Ã„Â‚Â­Â‚Â¾Â‚Â³Â‚Â¢
 	//				 - DAHLXO [ 1114h ]
 	//				 - DAHLXB [ 1115h ]
 	//				 - DAHLYO [ 1116h ]
@@ -2654,14 +2654,14 @@ unsigned char	DrvPwmSw( unsigned char UcSelPwmMod )
 
 	switch ( UcSelPwmMod ) {
 		case Mlnp :
-			RegWriteA( LXEQFC2 	, 0x01 ) ;						// 0x0083		Linear•â³ON
+			RegWriteA( LXEQFC2 	, 0x01 ) ;						// 0x0083		LinearÂ•Ã¢ÂÂ³ON
 			RegWriteA( LYEQFC2	, 0x01 ) ;						// 0x008D		
 			RegWriteA( DRVFC	, 0xE3 ) ;						// 0x0070	MODE=2,Drvier Block Ena=1,FullMode=1
 			UcPwmMod = PWMMOD_CVL ;
 			break ;
 		
 		case Mpwm :
-			RegWriteA( LXEQFC2	, 0x00 ) ;						// 0x0083		Linear•â³OFF
+			RegWriteA( LXEQFC2	, 0x00 ) ;						// 0x0083		LinearÂ•Ã¢ÂÂ³OFF
 			RegWriteA( LYEQFC2	, 0x00 ) ;						// 0x008D		
  #ifdef	LOWCURRENT
 			RegWriteA( DRVFC	, 0x03 ) ;						// 0x0070	DMODE=0,DRMODE=0,DRMODESEL=0
@@ -2695,7 +2695,7 @@ unsigned char	TneHvc( void )
 	
 	WitTim( 500 ) ;
 	
-	//•½‹Ï’l‘ª’è
+	//Â•Â½Â‹ÃÂ’lÂ‘ÂªÂ’Ã¨
 	
 	MesFil( THROUGH ) ;					// Set Measure Filter
 	
@@ -2705,8 +2705,8 @@ unsigned char	TneHvc( void )
 	RegWriteA( MSMPLNSH, 0x00 ) ;		// 0x00CB
 	RegWriteA( MSMPLNSL, 0x3F ) ;		// 0x00CA		64 times
 	
-	RegWriteA( MS1INADD, 0x01 ) ;		// 0x00C2		HXIDAT‚ğ‘ª’è‚·‚é
-	RegWriteA( MS2INADD, 0x04 ) ;		// 0x00C6		HYIDAT‚ğ‘ª’è‚·‚é
+	RegWriteA( MS1INADD, 0x01 ) ;		// 0x00C2		HXIDATÂ‚Ã°Â‘ÂªÂ’Ã¨Â‚Â·Â‚Ã©
+	RegWriteA( MS2INADD, 0x04 ) ;		// 0x00C6		HYIDATÂ‚Ã°Â‘ÂªÂ’Ã¨Â‚Â·Â‚Ã©
 	
 	BsyWit( MSMA, 0x01 ) ;				// 0x00C9		Measure
 	
@@ -2746,7 +2746,7 @@ void	SetGcf( unsigned char	UcSetNum )
 	
 	/* Zoom Step */
 	if(UcSetNum > (COEFTBL - 1))
-		UcSetNum = (COEFTBL -1) ;			/* ãŒÀ‚ğCOEFTBL-1‚Éİ’è‚·‚é */
+		UcSetNum = (COEFTBL -1) ;			/* ÂÃ£ÂŒÃ€Â‚Ã°COEFTBL-1Â‚Ã‰ÂÃÂ’Ã¨Â‚Â·Â‚Ã© */
 
 	UlGyrCof	= ClDiCof[ UcSetNum ] ;
 		
@@ -2827,7 +2827,7 @@ void	SetH1cMod( unsigned char	UcSetNum )
 		
 		/* Zoom Step */
 		if(UcSetNum > (COEFTBL - 1))
-			UcSetNum = (COEFTBL -1) ;			/* ãŒÀ‚ğCOEFTBL-1‚Éİ’è‚·‚é */
+			UcSetNum = (COEFTBL -1) ;			/* ÂÃ£ÂŒÃ€Â‚Ã°COEFTBL-1Â‚Ã‰ÂÃÂ’Ã¨Â‚Â·Â‚Ã© */
 
 		UlGyrCof	= ClDiCof[ UcSetNum ] ;
 

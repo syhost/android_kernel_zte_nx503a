@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_common.c 394786 2013-04-03 19:51:24Z $
+ * $Id: dhd_common.c 395161 2013-04-05 13:19:38Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -81,8 +81,13 @@ extern int dhd_get_concurrent_capabilites(dhd_pub_t *dhd);
 bool ap_cfg_running = FALSE;
 bool ap_fw_loaded = FALSE;
 
-const char dhd_version[] = "\nDongle Host Driver, version " EPI_VERSION_STR " Compiled from "
-	__FILE__ "on " __DATE__ " at " __TIME__;
+
+#ifdef DHD_DEBUG
+const char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR "\nCompiled on "
+	__DATE__ " at " __TIME__;
+#else
+const char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR;
+#endif
 
 void dhd_set_timer(void *bus, uint wdtick);
 
@@ -112,7 +117,11 @@ enum {
 	IOV_PROPTXSTATUS_ENABLE,
 	IOV_PROPTXSTATUS_MODE,
 	IOV_PROPTXSTATUS_OPT,
-#endif
+#ifdef QMONITOR
+	IOV_QMON_TIME_THRES,
+	IOV_QMON_TIME_PERCENT,
+#endif /* QMONITOR */
+#endif /* PROP_TXSTATUS */
 	IOV_BUS_TYPE,
 #ifdef WLMEDIA_HTSF
 	IOV_WLPKTDLYSTAT_SZ,
@@ -152,7 +161,11 @@ const bcm_iovar_t dhd_iovars[] = {
 	*/
 	{"ptxmode",	IOV_PROPTXSTATUS_MODE,	0,	IOVT_UINT32,	0 },
 	{"proptx_opt", IOV_PROPTXSTATUS_OPT, 	0,	IOVT_UINT32,	0 },
-#endif
+#ifdef QMONITOR
+	{"qtime_thres",	IOV_QMON_TIME_THRES,	0,	IOVT_UINT32,	0 },
+	{"qtime_percent", IOV_QMON_TIME_PERCENT, 0,	IOVT_UINT32,	0 },
+#endif /* QMONITOR */
+#endif /* PROP_TXSTATUS */
 	{"bustype", IOV_BUS_TYPE, 0, IOVT_UINT32, 0},
 #ifdef WLMEDIA_HTSF
 	{"pktdlystatsz", IOV_WLPKTDLYSTAT_SZ, 0, IOVT_UINT8, 0 },
@@ -163,40 +176,6 @@ const bcm_iovar_t dhd_iovars[] = {
 	{NULL, 0, 0, 0, 0 }
 };
 
-#if defined(NDISVER) && (NDISVER >= 0x0630)
-struct dhd_cmn *
-dhd_common_init(osl_t *osh)
-{
-	dhd_cmn_t *cmn;
-
-	/* Init global variables at run-time, not as part of the declaration.
-	 * This is required to support init/de-init of the driver. Initialization
-	 * of globals as part of the declaration results in non-deterministic
-	 * behavior since the value of the globals may be different on the
-	 * first time that the driver is initialized vs subsequent initializations.
-	 */
-	dhd_msg_level = DHD_ERROR_VAL;
-	/* Allocate private bus interface state */
-	if (!(cmn = MALLOC(osh, sizeof(dhd_cmn_t)))) {
-		DHD_ERROR(("%s: MALLOC failed\n", __FUNCTION__));
-		return NULL;
-	}
-	memset(cmn, 0, sizeof(dhd_cmn_t));
-	cmn->osh = osh;
-
-#ifdef CONFIG_BCM4329_FW_PATH
-	bcm_strncpy_s(fw_path, sizeof(fw_path), CONFIG_BCM4329_FW_PATH, MOD_PARAM_PATHLEN-1);
-#else /* CONFIG_BCM4329_FW_PATH */
-	fw_path[0] = '\0';
-#endif /* CONFIG_BCM4329_FW_PATH */
-#ifdef CONFIG_BCM4329_NVRAM_PATH
-	bcm_strncpy_s(nv_path, sizeof(nv_path), CONFIG_BCM4329_NVRAM_PATH, MOD_PARAM_PATHLEN-1);
-#else /* CONFIG_BCM4329_NVRAM_PATH */
-	nv_path[0] = '\0';
-#endif /* CONFIG_BCM4329_NVRAM_PATH */
-	return cmn;
-}
-#else
 void
 dhd_common_init(osl_t *osh)
 {
@@ -214,7 +193,6 @@ dhd_common_init(osl_t *osh)
 	fw_path2[0] = '\0';
 #endif
 }
-#endif /* (NDISVER >= 0x0600) */
 
 void
 dhd_common_deinit(dhd_pub_t *dhd_pub, dhd_cmn_t *sa_cmn)
@@ -253,31 +231,31 @@ dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 	bcm_bprintf(strbuf, "\n");
 	bcm_bprintf(strbuf, "pub.up %d pub.txoff %d pub.busstate %d\n",
 	            dhdp->up, dhdp->txoff, dhdp->busstate);
-	bcm_bprintf(strbuf, "pub.hdrlen %d pub.maxctl %d pub.rxsz %d\n",
+	bcm_bprintf(strbuf, "pub.hdrlen %u pub.maxctl %u pub.rxsz %u\n",
 	            dhdp->hdrlen, dhdp->maxctl, dhdp->rxsz);
 	bcm_bprintf(strbuf, "pub.iswl %d pub.drv_version %ld pub.mac %s\n",
 	            dhdp->iswl, dhdp->drv_version, bcm_ether_ntoa(&dhdp->mac, eabuf));
-	bcm_bprintf(strbuf, "pub.bcmerror %d tickcnt %d\n", dhdp->bcmerror, dhdp->tickcnt);
+	bcm_bprintf(strbuf, "pub.bcmerror %d tickcnt %u\n", dhdp->bcmerror, dhdp->tickcnt);
 
 	bcm_bprintf(strbuf, "dongle stats:\n");
-	bcm_bprintf(strbuf, "tx_packets %ld tx_bytes %ld tx_errors %ld tx_dropped %ld\n",
+	bcm_bprintf(strbuf, "tx_packets %lu tx_bytes %lu tx_errors %lu tx_dropped %lu\n",
 	            dhdp->dstats.tx_packets, dhdp->dstats.tx_bytes,
 	            dhdp->dstats.tx_errors, dhdp->dstats.tx_dropped);
-	bcm_bprintf(strbuf, "rx_packets %ld rx_bytes %ld rx_errors %ld rx_dropped %ld\n",
+	bcm_bprintf(strbuf, "rx_packets %lu rx_bytes %lu rx_errors %lu rx_dropped %lu\n",
 	            dhdp->dstats.rx_packets, dhdp->dstats.rx_bytes,
 	            dhdp->dstats.rx_errors, dhdp->dstats.rx_dropped);
-	bcm_bprintf(strbuf, "multicast %ld\n", dhdp->dstats.multicast);
+	bcm_bprintf(strbuf, "multicast %lu\n", dhdp->dstats.multicast);
 
 	bcm_bprintf(strbuf, "bus stats:\n");
-	bcm_bprintf(strbuf, "tx_packets %ld tx_multicast %ld tx_errors %ld\n",
+	bcm_bprintf(strbuf, "tx_packets %lu tx_multicast %lu tx_errors %lu\n",
 	            dhdp->tx_packets, dhdp->tx_multicast, dhdp->tx_errors);
-	bcm_bprintf(strbuf, "tx_ctlpkts %ld tx_ctlerrs %ld\n",
+	bcm_bprintf(strbuf, "tx_ctlpkts %lu tx_ctlerrs %lu\n",
 	            dhdp->tx_ctlpkts, dhdp->tx_ctlerrs);
-	bcm_bprintf(strbuf, "rx_packets %ld rx_multicast %ld rx_errors %ld \n",
+	bcm_bprintf(strbuf, "rx_packets %lu rx_multicast %lu rx_errors %lu \n",
 	            dhdp->rx_packets, dhdp->rx_multicast, dhdp->rx_errors);
-	bcm_bprintf(strbuf, "rx_ctlpkts %ld rx_ctlerrs %ld rx_dropped %ld\n",
+	bcm_bprintf(strbuf, "rx_ctlpkts %lu rx_ctlerrs %lu rx_dropped %lu\n",
 	            dhdp->rx_ctlpkts, dhdp->rx_ctlerrs, dhdp->rx_dropped);
-	bcm_bprintf(strbuf, "rx_readahead_cnt %ld tx_realloc %ld\n",
+	bcm_bprintf(strbuf, "rx_readahead_cnt %lu tx_realloc %lu\n",
 	            dhdp->rx_readahead_cnt, dhdp->tx_realloc);
 	bcm_bprintf(strbuf, "\n");
 
@@ -508,6 +486,24 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 			wlfc->proptxstatus_mode = int_val & 0xff;
 		}
 		break;
+#ifdef QMONITOR
+	case IOV_GVAL(IOV_QMON_TIME_THRES): {
+		int_val = dhd_qmon_thres(dhd_pub, FALSE, 0);
+		bcopy(&int_val, arg, val_size);
+		break;
+	}
+
+	case IOV_SVAL(IOV_QMON_TIME_THRES): {
+		dhd_qmon_thres(dhd_pub, TRUE, int_val);
+		break;
+	}
+
+	case IOV_GVAL(IOV_QMON_TIME_PERCENT): {
+		int_val = dhd_qmon_getpercent(dhd_pub);
+		bcopy(&int_val, arg, val_size);
+		break;
+	}
+#endif /* QMONITOR */
 #endif /* PROP_TXSTATUS */
 
 	case IOV_GVAL(IOV_BUS_TYPE):
@@ -1181,64 +1177,74 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 			event_data[2],
 			event_data[3], event_data[4], event_data[5]));
 		break;
-
-	case WLC_E_BCMC_CREDIT_SUPPORT:
-		dhd_wlfc_BCMCCredit_support_event(dhd_pub->info);
-		break;
 #endif
 
 	case WLC_E_IF:
 		{
-		struct wl_event_data_if *ifevent = (struct wl_event_data_if *)event_data;
+		dhd_if_event_t *ifevent = (dhd_if_event_t *)event_data;
 
 		/* Ignore the event if NOIF is set */
-		if (ifevent->reserved & WLC_E_IF_FLAGS_BSSCFG_NOIF) {
-			DHD_ERROR(("WLC_E_IF: NO_IF set, event Ignored\r\n"));
+		if (ifevent->flags & WLC_E_IF_FLAGS_BSSCFG_NOIF) {
+			WLFC_DBGMESG(("WLC_E_IF: NO_IF set, event Ignored\r\n"));
 			return (BCME_OK);
 		}
 
 #ifdef PROP_TXSTATUS
-		{
-			uint8* ea = pvt_data->eth.ether_dhost;
-			WLFC_DBGMESG(("WLC_E_IF: idx:%d, action:%s, iftype:%s, "
-			              "[%02x:%02x:%02x:%02x:%02x:%02x]\n",
-			              ifevent->ifidx,
-			              ((ifevent->opcode == WLC_E_IF_ADD) ? "ADD":"DEL"),
-			              ((ifevent->role == 0) ? "STA":"AP "),
-			              ea[0], ea[1], ea[2], ea[3], ea[4], ea[5]));
-			(void)ea;
+			{
+		uint8* ea = pvt_data->eth.ether_dhost;
+		WLFC_DBGMESG(("WLC_E_IF: idx:%d, action:%s, iftype:%s, "
+		              "[%02x:%02x:%02x:%02x:%02x:%02x]\n",
+		              ifevent->ifidx,
+		              ((ifevent->action == WLC_E_IF_ADD) ? "ADD":"DEL"),
+		              ((ifevent->is_AP == 0) ? "STA":"AP "),
+		              ea[0], ea[1], ea[2], ea[3], ea[4], ea[5]));
+		(void)ea;
 
-			dhd_os_wlfc_block(dhd_pub);
-			if (ifevent->opcode == WLC_E_IF_CHANGE)
-				dhd_wlfc_interface_event(dhd_pub->info,
-					eWLFC_MAC_ENTRY_ACTION_UPDATE,
-					ifevent->ifidx, ifevent->role, ea);
-			else
-				dhd_wlfc_interface_event(dhd_pub->info,
-					((ifevent->opcode == WLC_E_IF_ADD) ?
-					eWLFC_MAC_ENTRY_ACTION_ADD : eWLFC_MAC_ENTRY_ACTION_DEL),
-					ifevent->ifidx, ifevent->role, ea);
-			dhd_os_wlfc_unblock(dhd_pub);
+		dhd_os_wlfc_block(dhd_pub);
+		if (ifevent->action == WLC_E_IF_CHANGE)
+			dhd_wlfc_interface_event(dhd_pub->info,
+				eWLFC_MAC_ENTRY_ACTION_UPDATE,
+				ifevent->ifidx, ifevent->is_AP, ea);
+		else
+			dhd_wlfc_interface_event(dhd_pub->info,
+				((ifevent->action == WLC_E_IF_ADD) ?
+				eWLFC_MAC_ENTRY_ACTION_ADD : eWLFC_MAC_ENTRY_ACTION_DEL),
+				ifevent->ifidx, ifevent->is_AP, ea);
+		dhd_os_wlfc_unblock(dhd_pub);
 
-			/* dhd already has created an interface by default, for 0 */
-			if (ifevent->ifidx == 0)
-				break;
-		}
+		/* dhd already has created an interface by default, for 0 */
+		if (ifevent->ifidx == 0)
+			break;
+			}
 #endif /* PROP_TXSTATUS */
 
-		if (ifevent->ifidx > 0 && ifevent->ifidx < DHD_MAX_IFS) {
-			if (ifevent->opcode == WLC_E_IF_ADD) {
-				if (dhd_event_ifadd(dhd_pub->info, ifevent, event->ifname,
-					event->addr.octet)) {
-
-					DHD_ERROR(("%s: dhd_event_ifadd failed ifidx: %d  %s\n",
-						__FUNCTION__, ifevent->ifidx, event->ifname));
-					return (BCME_ERROR);
-				}
+#ifdef WL_CFG80211
+			if (wl_cfg80211_is_progress_ifchange()) {
+				DHD_ERROR(("%s:  ifidx %d for %s action %d\n",
+					__FUNCTION__, ifevent->ifidx,
+					event->ifname, ifevent->action));
+				if (ifevent->action == WLC_E_IF_ADD ||
+					ifevent->action == WLC_E_IF_CHANGE)
+					wl_cfg80211_notify_ifchange();
+				return (BCME_OK);
 			}
-			else if (ifevent->opcode == WLC_E_IF_DEL)
-				dhd_event_ifdel(dhd_pub->info, ifevent, event->ifname,
-					event->addr.octet);
+#endif /* WL_CFG80211 */
+		if (ifevent->ifidx > 0 && ifevent->ifidx < DHD_MAX_IFS) {
+					if (ifevent->action == WLC_E_IF_ADD) {
+						if (dhd_add_if(dhd_pub->info, ifevent->ifidx,
+							NULL, event->ifname,
+							event->addr.octet,
+							ifevent->flags, ifevent->bssidx)) {
+							DHD_ERROR(("%s: dhd_add_if failed!!"
+									" ifidx: %d for %s\n",
+									__FUNCTION__,
+									ifevent->ifidx,
+									event->ifname));
+							return (BCME_ERROR);
+						}
+					}
+					else if (ifevent->action == WLC_E_IF_DEL)
+						dhd_del_if(dhd_pub->info, ifevent->ifidx);
 		} else {
 #ifndef PROP_TXSTATUS
 			DHD_ERROR(("%s: Invalid ifidx %d for %s\n",
@@ -1258,17 +1264,12 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 		htsf_update(dhd_pub->info, event_data);
 		break;
 #endif /* WLMEDIA_HTSF */
-#if defined(NDISVER) && (NDISVER >= 0x0630)
-	case WLC_E_NDIS_LINK:
-		break;
-#else
 	case WLC_E_NDIS_LINK: {
 		uint32 temp = hton32(WLC_E_LINK);
 
 		memcpy((void *)(&pvt_data->event.event_type), &temp,
 		       sizeof(pvt_data->event.event_type));
 	}
-#endif /* NDISVER >= 0x0630 */
 		/* These are what external supplicant/authenticator wants */
 		/* fall through */
 	case WLC_E_LINK:
@@ -1834,7 +1835,7 @@ dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd)
 	if (dtim_assoc == 0) {
 		goto exit;
 	}
-
+#if 0
 	/* attemp to use platform defined dtim skip interval */
 	bcn_li_dtim = dhd->suspend_bcn_li_dtim;
 
@@ -1855,7 +1856,14 @@ dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd)
 
 	DHD_ERROR(("%s beacon=%d bcn_li_dtim=%d DTIM=%d Listen=%d\n",
 		__FUNCTION__, ap_beacon, bcn_li_dtim, dtim_assoc, LISTEN_INTERVAL));
-
+#else
+	if(dtim_assoc == 1)
+		bcn_li_dtim = 3;//listen beacon every 100ms * 3
+	else if(dtim_assoc == 2)
+		bcn_li_dtim = 2;//listen beacon every 200ms * 2
+	else
+		bcn_li_dtim = 1;//Don't skip if DTIM > 2
+#endif
 exit:
 	return bcn_li_dtim;
 }

@@ -6,7 +6,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_proto.h 387757 2013-02-27 01:09:03Z $
+ * $Id: dhd_proto.h 390836 2013-03-13 23:43:53Z $
  */
 
 #ifndef _dhd_proto_h_

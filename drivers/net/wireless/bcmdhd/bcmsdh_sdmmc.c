@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c 394213 2013-04-01 16:26:03Z $
+ * $Id: bcmsdh_sdmmc.c 386902 2013-02-22 09:10:37Z $
  */
 #include <typedefs.h>
 
@@ -1029,124 +1029,215 @@ sdioh_glom_enabled(void)
 #endif /* BCMSDIOH_TXGLOM */
 
 static SDIOH_API_RC
-sdioh_request_packet_chain(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
+sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
                      uint addr, void *pkt)
 {
 	bool fifo = (fix_inc == SDIOH_DATA_FIX);
+	uint32	SGCount = 0;
 	int err_ret = 0;
 	void *pnext;
-	uint ttl_len, pkt_len;
+	uint ttl_len, dma_len, lft_len, xfred_len, pkt_len;
 	uint blk_num;
-	uint blk_size;
+	int blk_size;
 	struct mmc_request mmc_req;
 	struct mmc_command mmc_cmd;
 	struct mmc_data mmc_dat;
-	uint32	sg_count = 0;
+#ifdef BCMSDIOH_TXGLOM
+	uint8 *localbuf = NULL;
+	uint local_plen = 0;
+	bool need_txglom = write && sdioh_glom_enabled() &&
+		(pkt == sd->glom_info.glom_pkt_tail) &&
+		(sd->glom_info.glom_pkt_head != sd->glom_info.glom_pkt_tail);
+#endif /* BCMSDIOH_TXGLOM */
 
 	sd_trace(("%s: Enter\n", __FUNCTION__));
+
 	ASSERT(pkt);
 	DHD_PM_RESUME_WAIT(sdioh_request_packet_wait);
 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
 
-	ttl_len = 0;
+	ttl_len = xfred_len = 0;
+#ifdef BCMSDIOH_TXGLOM
+	if (need_txglom) {
+		pkt = sd->glom_info.glom_pkt_head;
+	}
+#endif /* BCMSDIOH_TXGLOM */
+
+	/* at least 4 bytes alignment of skb buff is guaranteed */
+	for (pnext = pkt; pnext; pnext = PKTNEXT(sd->osh, pnext))
+		ttl_len += PKTLEN(sd->osh, pnext);
+
 	blk_size = sd->client_block_size[func];
-	memset(&mmc_req, 0, sizeof(struct mmc_request));
-	memset(&mmc_cmd, 0, sizeof(struct mmc_command));
-	memset(&mmc_dat, 0, sizeof(struct mmc_data));
-	sg_init_table(sd->sg_list, ARRAYSIZE(sd->sg_list));
-
-	/* Set up scatter-gather DMA descriptors */
-	for (pnext = pkt; pnext != NULL; pnext = PKTNEXT(sd->osh, pnext)) {
-
-		if (PKTDATA(sd->osh, pnext) == NULL) {
-			sd_err(("data pointer is null\n"));
-			return (SDIOH_API_RC_FAIL);
-		}
-		pkt_len = PKTLEN(sd->osh, pnext);
-
-		ttl_len += pkt_len;
-		if (sg_count >= ARRAYSIZE(sd->sg_list)) {
-			sd_err(("%s: sg list entries exceed limit\n", __FUNCTION__));
-			return (SDIOH_API_RC_FAIL);
-		}
-		sg_set_buf(&sd->sg_list[sg_count++], (uint8*)PKTDATA(sd->osh, pnext), pkt_len);
-		sd_err(("%s: [%d] pktdata=%p, len=%d\n",
-			__FUNCTION__, write, (uint8*)PKTDATA(sd->osh, pnext), pkt_len));
+	if (((!write && sd->use_rxchain) ||
+#ifdef BCMSDIOH_TXGLOM
+		(need_txglom && sd->txglom_mode == SDPCM_TXGLOM_MDESC) ||
+#endif
+		0) && (ttl_len > blk_size)) {
+		blk_num = ttl_len / blk_size;
+		dma_len = blk_num * blk_size;
+	} else {
+		blk_num = 0;
+		dma_len = 0;
 	}
 
-	if (ttl_len % blk_size != 0) {
-		sd_err(("%s, data length %d not aligned to block size %d",
-			__FUNCTION__,  ttl_len, blk_size));
+	lft_len = ttl_len - dma_len;
+
+	sd_trace(("%s: %s %dB to func%d:%08x, %d blks with DMA, %dB leftover\n",
+		__FUNCTION__, write ? "W" : "R",
+		ttl_len, func, addr, blk_num, lft_len));
+
+	if (0 != dma_len) {
+		memset(&mmc_req, 0, sizeof(struct mmc_request));
+		memset(&mmc_cmd, 0, sizeof(struct mmc_command));
+		memset(&mmc_dat, 0, sizeof(struct mmc_data));
+
+		/* Set up DMA descriptors */
+		for (pnext = pkt;
+		     pnext && dma_len;
+		     pnext = PKTNEXT(sd->osh, pnext)) {
+			pkt_len = PKTLEN(sd->osh, pnext);
+
+			if (dma_len > pkt_len)
+				dma_len -= pkt_len;
+			else {
+				pkt_len = xfred_len = dma_len;
+				dma_len = 0;
+				pkt = pnext;
+			}
+
+			sg_set_buf(&sd->sg_list[SGCount++],
+				(uint8*)PKTDATA(sd->osh, pnext),
+				pkt_len);
+
+			if (SGCount >= SDIOH_SDMMC_MAX_SG_ENTRIES) {
+				sd_err(("%s: sg list entries exceed limit\n",
+					__FUNCTION__));
+				return (SDIOH_API_RC_FAIL);
+			}
+		}
+
+		mmc_dat.sg = sd->sg_list;
+		mmc_dat.sg_len = SGCount;
+		mmc_dat.blksz = blk_size;
+		mmc_dat.blocks = blk_num;
+		mmc_dat.flags = write ? MMC_DATA_WRITE : MMC_DATA_READ;
+
+		mmc_cmd.opcode = 53;		/* SD_IO_RW_EXTENDED */
+		mmc_cmd.arg = write ? 1<<31 : 0;
+		mmc_cmd.arg |= (func & 0x7) << 28;
+		mmc_cmd.arg |= 1<<27;
+		mmc_cmd.arg |= fifo ? 0 : 1<<26;
+		mmc_cmd.arg |= (addr & 0x1FFFF) << 9;
+		mmc_cmd.arg |= blk_num & 0x1FF;
+		mmc_cmd.flags = MMC_RSP_SPI_R5 | MMC_RSP_R5 | MMC_CMD_ADTC;
+
+		mmc_req.cmd = &mmc_cmd;
+		mmc_req.data = &mmc_dat;
+
+		sdio_claim_host(gInstance->func[func]);
+		mmc_set_data_timeout(&mmc_dat, gInstance->func[func]->card);
+		mmc_wait_for_req(gInstance->func[func]->card->host, &mmc_req);
+		sdio_release_host(gInstance->func[func]);
+
+		err_ret = mmc_cmd.error? mmc_cmd.error : mmc_dat.error;
+		if (0 != err_ret) {
+			sd_err(("%s:CMD53 %s failed with code %d\n",
+			       __FUNCTION__,
+			       write ? "write" : "read",
+			       err_ret));
+		}
+		if (!fifo) {
+			addr = addr + ttl_len - lft_len - dma_len;
+		}
 	}
-	blk_num = ttl_len / blk_size;
-	mmc_dat.sg = sd->sg_list;
-	mmc_dat.sg_len = sg_count;
-	mmc_dat.blksz = blk_size;
-	mmc_dat.blocks = blk_num;
-	mmc_dat.flags = write ? MMC_DATA_WRITE : MMC_DATA_READ;
-	mmc_cmd.opcode = 53; /* SD_IO_RW_EXTENDED */
-	mmc_cmd.arg = write ? 1<<31 : 0;
-	mmc_cmd.arg |= (func & 0x7) << 28;
-	mmc_cmd.arg |= 1<<27;
-	mmc_cmd.arg |= fifo ? 0 : 1<<26;
-	mmc_cmd.arg |= (addr & 0x1FFFF) << 9;
-	mmc_cmd.arg |= blk_num & 0x1FF;
-	mmc_cmd.flags = MMC_RSP_SPI_R5 | MMC_RSP_R5 | MMC_CMD_ADTC;
-	mmc_req.cmd = &mmc_cmd;
-	mmc_req.data = &mmc_dat;
 
-	sdio_claim_host(gInstance->func[func]);
-	mmc_set_data_timeout(&mmc_dat, gInstance->func[func]->card);
-	mmc_wait_for_req(gInstance->func[func]->card->host, &mmc_req);
-	sdio_release_host(gInstance->func[func]);
+	/* PIO mode */
+	if (0 != lft_len) {
+		/* Claim host controller */
+		sdio_claim_host(gInstance->func[func]);
+		for (pnext = pkt; pnext; pnext = PKTNEXT(sd->osh, pnext)) {
+			uint8 *buf = (uint8*)PKTDATA(sd->osh, pnext) +
+				xfred_len;
+			pkt_len = PKTLEN(sd->osh, pnext);
+			if (0 != xfred_len) {
+				pkt_len -= xfred_len;
+				xfred_len = 0;
+			}
+#ifdef BCMSDIOH_TXGLOM
+			if (need_txglom) {
+				if (!localbuf) {
+					localbuf = (uint8 *)MALLOC(sd->osh, lft_len);
+					if (localbuf == NULL) {
+						sd_err(("%s: %s TXGLOM: localbuf malloc FAILED\n",
+							__FUNCTION__, (write) ? "TX" : "RX"));
+						goto txglomfail;
+					}
+				}
+				bcopy(buf, (localbuf + local_plen), pkt_len);
+				local_plen += pkt_len;
 
-	err_ret = mmc_cmd.error? mmc_cmd.error : mmc_dat.error;
-	if (0 != err_ret)
-		sd_err(("%s:CMD53 %s failed with code %d\n",
-		__FUNCTION__, write ? "write" : "read", err_ret));
+				if (PKTNEXT(sd->osh, pnext)) {
+					continue;
+				}
 
-	sd_trace(("%s: Exit\n", __FUNCTION__));
-	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
-}
+				buf = localbuf;
+				pkt_len = local_plen;
+			}
 
-static SDIOH_API_RC
-sdioh_buffer_tofrom_bus(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
-                     uint addr, uint8 *buf, uint len)
-{
-	bool fifo = (fix_inc == SDIOH_DATA_FIX);
-	int err_ret = 0;
+txglomfail:
+#endif /* BCMSDIOH_TXGLOM */
 
-	sd_trace(("%s: Enter\n", __FUNCTION__));
-	ASSERT(buf);
+			/* Align Patch */
+			if (!write || pkt_len < 32)
+				pkt_len = (pkt_len + 3) & 0xFFFFFFFC;
+			else if (pkt_len % blk_size)
+				pkt_len += blk_size - (pkt_len % blk_size);
 
-	/* NOTE:
-	 * For all writes, each packet length is aligned to 32 (or 4)
-	 * bytes in dhdsdio_txpkt_preprocess, and for glom the last packet length
-	 * is aligned to block boundary. If you want to align each packet to
-	 * a custom size, please do it in dhdsdio_txpkt_preprocess, NOT here
-	 *
-	 * For reads, the alignment is doen in sdioh_request_buffer.
-	 *
-	 */
-	sdio_claim_host(gInstance->func[func]);
+#ifdef CONFIG_MMC_MSM7X00A
+			if ((pkt_len % 64) == 32) {
+				sd_trace(("%s: Rounding up TX packet +=32\n", __FUNCTION__));
+				pkt_len += 32;
+			}
+#endif /* CONFIG_MMC_MSM7X00A */
 
-	if ((write) && (!fifo))
-		err_ret = sdio_memcpy_toio(gInstance->func[func], addr, buf, len);
-	else if (write)
-		err_ret = sdio_memcpy_toio(gInstance->func[func], addr, buf, len);
-	else if (fifo)
-		err_ret = sdio_readsb(gInstance->func[func], buf, addr, len);
-	else
-		err_ret = sdio_memcpy_fromio(gInstance->func[func], buf, addr, len);
+			if ((write) && (!fifo))
+				err_ret = sdio_memcpy_toio(
+						gInstance->func[func],
+						addr, buf, pkt_len);
+			else if (write)
+				err_ret = sdio_memcpy_toio(
+						gInstance->func[func],
+						addr, buf, pkt_len);
+			else if (fifo)
+				err_ret = sdio_readsb(
+						gInstance->func[func],
+						buf, addr, pkt_len);
+			else
+				err_ret = sdio_memcpy_fromio(
+						gInstance->func[func],
+						buf, addr, pkt_len);
 
-	sdio_release_host(gInstance->func[func]);
+			if (err_ret)
+				sd_err(("%s: %s FAILED %p[%d], addr=0x%05x, pkt_len=%d, ERR=%d\n",
+				       __FUNCTION__,
+				       (write) ? "TX" : "RX",
+				       pnext, SGCount, addr, pkt_len, err_ret));
+			else
+				sd_trace(("%s: %s xfr'd %p[%d], addr=0x%05x, len=%d\n",
+					__FUNCTION__,
+					(write) ? "TX" : "RX",
+					pnext, SGCount, addr, pkt_len));
 
-	if (err_ret)
-		sd_err(("%s: %s FAILED %p, addr=0x%05x, pkt_len=%d, ERR=%d\n", __FUNCTION__,
-		       (write) ? "TX" : "RX", buf, addr, len, err_ret));
-	else
-		sd_trace(("%s: %s xfr'd %p, addr=0x%05x, len=%d\n", __FUNCTION__,
-			(write) ? "TX" : "RX", buf, addr, len));
+			if (!fifo)
+				addr += pkt_len;
+			SGCount ++;
+		}
+		sdio_release_host(gInstance->func[func]);
+	}
+#ifdef BCMSDIOH_TXGLOM
+	if (localbuf)
+		MFREE(sd->osh, localbuf, lft_len);
+#endif /* BCMSDIOH_TXGLOM */
 
 	sd_trace(("%s: Exit\n", __FUNCTION__));
 	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
@@ -1166,57 +1257,54 @@ sdioh_buffer_tofrom_bus(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
  */
 extern SDIOH_API_RC
 sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write, uint func,
-	uint addr, uint reg_width, uint buf_len, uint8 *buffer, void *pkt)
+	uint addr, uint reg_width, uint buflen_u, uint8 *buffer, void *pkt)
 {
-	SDIOH_API_RC status;
+	SDIOH_API_RC Status;
 	void *tmppkt;
+	void *orig_buf = NULL;
+	uint copylen = 0;
 
 	sd_trace(("%s: Enter\n", __FUNCTION__));
+
 	DHD_PM_RESUME_WAIT(sdioh_request_buffer_wait);
 	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
 
-	if (pkt) {
-		/* packet chain, only used for tx/rx glom, all packets length
-		 * are aligned, total length is a block multiple
+	if (pkt == NULL) {
+		/* Case 1: we don't have a packet. */
+		orig_buf = buffer;
+		copylen = buflen_u;
+	} else if ((ulong)PKTDATA(sd->osh, pkt) & DMA_ALIGN_MASK) {
+		/* Case 2: We have a packet, but it is unaligned.
+		 * in this case, we cannot have a chain.
 		 */
-		if (PKTNEXT(sd->osh, pkt))
-			return sdioh_request_packet_chain(sd, fix_inc, write, func, addr, pkt);
+		ASSERT(PKTNEXT(sd->osh, pkt) == NULL);
 
-		/* non-glom mode, ignore the buffer parameter and use the packet pointer
-		 * (this shouldn't happen)
-		 */
-		buffer = PKTDATA(sd->osh, pkt);
-		buf_len = PKTLEN(sd->osh, pkt);
+		orig_buf =	PKTDATA(sd->osh, pkt);
+		copylen = PKTLEN(sd->osh, pkt);
 	}
 
-	ASSERT(buffer);
-
-	/* buffer and length are aligned, use it directly so we can avoid memory copy */
-	if (((uint)buffer & DMA_ALIGN_MASK) == 0 && (buf_len & DMA_ALIGN_MASK) == 0)
-		return sdioh_buffer_tofrom_bus(sd, fix_inc, write, func, addr, buffer, buf_len);
-
-	sd_err(("%s: [%d] doing memory copy buf=%p, len=%d\n",
-		__FUNCTION__, write, buffer, buf_len));
-
-	/* otherwise, a memory copy is needed as the input buffer is not aligned */
-	tmppkt = PKTGET_STATIC(sd->osh, buf_len + DEFAULT_SDIO_F2_BLKSIZE, write ? TRUE : FALSE);
-	if (tmppkt == NULL) {
-		sd_err(("%s: PKTGET failed: len %d\n", __FUNCTION__, buf_len));
-		return SDIOH_API_RC_FAIL;
+	tmppkt = pkt;
+	if (copylen) {
+		tmppkt = PKTGET_STATIC(sd->osh, copylen, write ? TRUE : FALSE);
+		if (tmppkt == NULL) {
+			sd_err(("%s: PKTGET failed: len %d\n", __FUNCTION__, copylen));
+			return SDIOH_API_RC_FAIL;
+		}
+		/* For a write, copy the buffer data into the packet. */
+		if (write)
+			bcopy(orig_buf, PKTDATA(sd->osh, tmppkt), copylen);
 	}
 
-	if (write)
-		bcopy(buffer, PKTDATA(sd->osh, tmppkt), buf_len);
+	Status = sdioh_request_packet(sd, fix_inc, write, func, addr, tmppkt);
 
-	status = sdioh_buffer_tofrom_bus(sd, fix_inc, write, func, addr,
-		PKTDATA(sd->osh, tmppkt), ROUNDUP(buf_len, (DMA_ALIGN_MASK+1)));
+	if (copylen) {
+		/* For a read, copy the packet data back to the buffer. */
+		if (!write)
+			bcopy(PKTDATA(sd->osh, tmppkt), orig_buf, PKTLEN(sd->osh, tmppkt));
+		PKTFREE_STATIC(sd->osh, tmppkt, write ? TRUE : FALSE);
+	}
 
-	if (!write)
-		bcopy(PKTDATA(sd->osh, tmppkt), buffer, buf_len);
-
-	PKTFREE_STATIC(sd->osh, tmppkt, write ? TRUE : FALSE);
-
-	return status;
+	return (Status);
 }
 
 /* this function performs "abort" for both of host & device */

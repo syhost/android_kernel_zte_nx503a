@@ -20,13 +20,21 @@
 
 
 #ifdef DEBUG
+#ifndef DEV_DBG
 #define DEV_DBG(args...) pr_notice(DEV_TAG args)
+#endif
 #else
+#ifndef DEV_DBG
 #define DEV_DBG(args...) (void)0
 #endif
+#endif
 
+#ifndef DEV_NOTICE
 #define DEV_NOTICE(args...) pr_notice(DEV_TAG args)
+#endif
+#ifndef DEV_ERR
 #define DEV_ERR(args...) pr_notice(DEV_TAG args)
+#endif
 
 
 #define SSC_EN

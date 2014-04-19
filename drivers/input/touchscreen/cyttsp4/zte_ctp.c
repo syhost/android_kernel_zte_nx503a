@@ -298,6 +298,10 @@ static int cyttsp_check_version(struct cyttsp4_sysinfo *si)
         return -EINVAL;
     }
     
+    /*Discard 0x0309, back to 0x0308*/
+    if (si->fw_ver == 0x0309)
+        return 1;
+    
     si->fw_ver_new = CYTTSP4_FIRMEARE_VERSION;
 
     fw_ver = si->fw_ver & 0x000F; 

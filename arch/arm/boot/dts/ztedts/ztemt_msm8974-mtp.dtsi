@@ -63,6 +63,7 @@
 		};
 	};
 	i2c@f9924000 {
+		/*ZTEMT Added by luochangyang, 2013/12/19*/
 		cyttsp4_i2c_adapter@24 {
 			compatible = "cypress,cyttsp4_i2c_adapter";
 			reg = <0x24>;
@@ -74,6 +75,19 @@
 			cypress,irq-gpio = <&msmgpio 61 0x00>;
 		};
 
+		synaptics_dsx_i2c@22 {
+			compatible = "synaptics_dsx_i2c,rmi4";
+			reg = <0x22>;
+			interrupt-parent = <&msmgpio>;
+			interrupts = <61 0x2>;
+			vdd_ana-supply = <&pm8941_l18>;
+			vcc_i2c-supply = <&pm8941_lvs1>;
+			synaptics,reset-gpio = <&msmgpio 60 0x00>;
+			synaptics,irq-gpio = <&msmgpio 61 0x00>;
+			synaptics,regulator_en;
+		};
+        /*ZTEMT END*/
+		
 		atmel_mxt_ts@4a {
 			compatible = "atmel,mxt-ts";
 			reg = <0x4a>;
@@ -363,24 +377,24 @@
 &spmi_bus {
 	qcom,pm8941@1 {
 		qcom,leds@d800 {
-		/*
-			status = "okay";
-			qcom,wled_0 {
-				label = "wled";
-				linux,name = "wled:backlight";
-				linux,default-trigger = "bkl-trigger";
-				qcom,cs-out-en;
-				qcom,op-fdbck = <1>;
-				qcom,default-state = "on";
-				qcom,max-current = <25>;
-				qcom,ctrl-delay-us = <0>;
-				qcom,boost-curr-lim = <3>;
-				qcom,cp-sel = <0>;
-				qcom,switch-freq = <2>;
-				qcom,ovp-val = <2>;
-				qcom,num-strings = <1>;
-				qcom,id = <0>;
-			};*/
+                        /*status = "okay";
+                        qcom,wled_0 {
+                                label = "wled";
+                                linux,name = "wled:backlight";
+                                linux,default-trigger = "bkl-trigger";
+                                qcom,cs-out-en;
+                                qcom,op-fdbck = <1>;
+                                qcom,default-state = "on";
+                                qcom,max-current = <25>;
+                                qcom,ctrl-delay-us = <0>;
+                                qcom,boost-curr-lim = <5>;
+                                qcom,cp-sel = <0>;
+                                qcom,switch-freq = <11>;
+                                qcom,ovp-val = <2>;
+                                qcom,num-strings = <3>;
+                                qcom,num-physical-strings = <3>;
+                                qcom,id = <0>;
+                        };*/
 		};
 
 		qcom,leds@d900 {

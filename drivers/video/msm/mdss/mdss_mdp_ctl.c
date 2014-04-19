@@ -23,20 +23,12 @@
 
 /* truncate at 1k */
 #define MDSS_MDP_BUS_FACTOR_SHIFT 10
-#ifdef CONFIG_ZTEMT_LCD_MIPI_COMMON
-/*pr00184530 add bw,mayu add 11.12*/
-#define MDSS_MDP_BUS_FUDGE_FACTOR_IB(val) ((((val) / 2) * 3)*2)
-#define MDSS_MDP_BUS_FUDGE_FACTOR_HIGH_IB(val) ((val << 1)*2)
-#define MDSS_MDP_BUS_FUDGE_FACTOR_AB(val) ((val << 1)*2)
-#define MDSS_MDP_BUS_FLOOR_BW ((3200000000ULL >> MDSS_MDP_BUS_FACTOR_SHIFT)*2)
-#else
-/*qcom oir*/
+
 /* 1.5 bus fudge factor */
 #define MDSS_MDP_BUS_FUDGE_FACTOR_IB(val) (((val) / 2) * 3)
 #define MDSS_MDP_BUS_FUDGE_FACTOR_HIGH_IB(val) (val << 1)
 #define MDSS_MDP_BUS_FUDGE_FACTOR_AB(val) (val << 1)
 #define MDSS_MDP_BUS_FLOOR_BW (3200000000ULL >> MDSS_MDP_BUS_FACTOR_SHIFT)
-#endif
 
 /* 1.25 clock fudge factor */
 #define MDSS_MDP_CLK_FUDGE_FACTOR(val) (((val) * 5) / 4)
@@ -94,6 +86,59 @@ static u32 __mdss_mdp_ctrl_perf_ovrd_helper(struct mdss_mdp_mixer *mixer,
 	return ovrd;
 }
 
+#ifdef CONFIG_ZTEMT_LCD_MIPI_COMMON
+static void __mdss_mdp_ctrl_perf_ovrd(struct mdss_data_type *mdata,
+	u64 *ab_quota, u64 *ib_quota)
+{
+	struct mdss_mdp_ctl *ctl;
+	u32 i, npipe = 0, ovrd = 0;
+
+  u64 cal_temp=0;
+  u64 mdp_bus_floor_bw=0;
+
+	for (i = 0; i < mdata->nctl; i++) {
+		ctl = mdata->ctl_off + i;
+		if (!ctl->power_on)
+			continue;
+		ovrd |= __mdss_mdp_ctrl_perf_ovrd_helper(
+				ctl->mixer_left, &npipe);
+		ovrd |= __mdss_mdp_ctrl_perf_ovrd_helper(
+				ctl->mixer_right, &npipe);
+	}
+
+  //1.2 *6/5
+  cal_temp =MDSS_MDP_BUS_FUDGE_FACTOR_AB(*ab_quota) * 6;
+  do_div(cal_temp,5);
+  *ab_quota = cal_temp;
+
+	if (npipe > 1)
+	{
+    cal_temp =  MDSS_MDP_BUS_FUDGE_FACTOR_HIGH_IB(*ib_quota)*6;
+    do_div(cal_temp,5);
+  	*ib_quota = cal_temp;
+	}else{
+    cal_temp = MDSS_MDP_BUS_FUDGE_FACTOR_IB(*ib_quota)*6;
+    do_div(cal_temp,5);
+		*ib_quota = cal_temp;
+  }
+
+
+  mdp_bus_floor_bw =MDSS_MDP_BUS_FLOOR_BW *6;
+  do_div(mdp_bus_floor_bw,5);
+
+	if (ovrd && (*ib_quota < mdp_bus_floor_bw)) {
+		*ib_quota = mdp_bus_floor_bw;
+		pr_debug("forcing the BIMC clock to 200 MHz : %llu",
+			*ib_quota);
+	} else {
+		pr_debug("ib quota : %llu", *ib_quota);
+	}
+
+
+}
+
+#else
+/*qcom ori*/
 static void __mdss_mdp_ctrl_perf_ovrd(struct mdss_data_type *mdata,
 	u64 *ab_quota, u64 *ib_quota)
 {
@@ -124,6 +169,7 @@ static void __mdss_mdp_ctrl_perf_ovrd(struct mdss_data_type *mdata,
 		pr_debug("ib quota : %llu", *ib_quota);
 	}
 }
+#endif
 
 static int mdss_mdp_ctl_perf_commit(struct mdss_data_type *mdata, u32 flags)
 {
@@ -208,7 +254,14 @@ int mdss_mdp_perf_calc_pipe(struct mdss_mdp_pipe *pipe,
 
 	quota = fps * pipe->src.w * src_h;
 	if (pipe->src_fmt->chroma_sample == MDSS_MDP_CHROMA_420)
-		quota = (quota * 3) / 2;
+		/*
+		 * with decimation, chroma is not downsampled, this means we
+		 * need to allocate bw for extra lines that will be fetched
+		 */
+		if (pipe->vert_deci)
+			quota *= 2;
+		else
+			quota = (quota * 3) / 2;
 	else
 		quota *= pipe->src_fmt->bpp;
 
